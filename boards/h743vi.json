@@ -1,0 +1,22 @@
+{
+  "name": "DSI3 Slave Controller",
+  "url": "https://github.com/sdyspb/dsi3-simulator",
+  "vendor": "sdyspb",
+  "frameworks": ["stm32cube"],
+  "platforms": ["ststm32"],
+  "extends": "nucleo_h743zi",
+  "build": {
+    "mcu": "stm32h743vitx",
+    "cpu": "cortex-m7",
+    "core": "stm32",
+    "variant": "STM32H743xx",
+    "product_line": "STM32H743xx",
+    "extra_flags": "-DSTM32H743xx",
+    "f_cpu": "400000000L"
+  },
+  "upload": {
+    "maximum_size": 2097152,
+    "maximum_ram_size": 1048576,
+    "protocol": "stlink"
+  }
+}
