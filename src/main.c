@@ -25,6 +25,8 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "string.h"
+#include "stdio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -38,7 +40,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define CLI_BUFFER_SIZE 128
+#define HEARTBEAT_INTERVAL 500  // ms
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -47,16 +50,22 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
 /* USER CODE BEGIN PV */
-
+UART_HandleTypeDef huart1;
+uint8_t cli_buffer[CLI_BUFFER_SIZE];
+uint32_t cli_idx = 0;
+uint8_t rx_data;  // Changed from 'char' to 'uint8_t' to match HAL_UART_Receive signature
+uint32_t last_heartbeat_toggle = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
-
+void CLI_ProcessCommand(char *cmd);
+void CLI_SendString(char *str);
+void CLI_PrintHelp(void);
+void CLI_PrintSystemInfo(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -103,6 +112,15 @@ int main(void)
   MX_USART1_UART_Init();
   MX_COMP1_Init();
   /* USER CODE BEGIN 2 */
+  
+  // Turn off heartbeat LED initially
+  HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
+  
+  // Send welcome message via USART1
+  CLI_SendString("\r\n================================\r\n");
+  CLI_SendString("DSI3 Slave Simulator Started\r\n");
+  CLI_SendString("Type 'help' for available commands\r\n");
+  CLI_SendString("================================\r\n");
 
   /* USER CODE END 2 */
 
@@ -110,7 +128,30 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
+    // Handle incoming CLI commands
+    if (HAL_UART_Receive(&huart1, &rx_data, 1, 0) == HAL_OK) {
+      if (rx_data == '\r' || rx_data == '\n') {
+        if (cli_idx > 0) {
+          cli_buffer[cli_idx] = '\0';
+          CLI_ProcessCommand((char*)cli_buffer);
+          cli_idx = 0;
+        }
+      } else if (rx_data >= 32 && rx_data <= 126) {  // Printable ASCII chars
+        if (cli_idx < CLI_BUFFER_SIZE - 1) {
+          cli_buffer[cli_idx++] = rx_data;
+        }
+      } else if (rx_data == 127 || rx_data == 8) {  // Backspace or DEL
+        if (cli_idx > 0) {
+          cli_idx--;
+        }
+      }
+    }
+
+    // Heartbeat LED toggle
+    if ((HAL_GetTick() - last_heartbeat_toggle) >= HEARTBEAT_INTERVAL) {
+      HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);  // Heartbeat on GPIO_PD2
+      last_heartbeat_toggle = HAL_GetTick();
+    }
 
     /* USER CODE BEGIN 3 */
   }
@@ -222,6 +263,77 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
+
+/* CLI Functions Implementation */
+void CLI_SendString(char *str)
+{
+  HAL_UART_Transmit(&huart1, (uint8_t *)str, strlen(str), HAL_MAX_DELAY);
+}
+
+void CLI_PrintHelp(void)
+{
+  CLI_SendString("\r\nAvailable Commands:\r\n");
+  CLI_SendString("  help              - Show this help message\r\n");
+  CLI_SendString("  sysinfo           - Display system information\r\n");
+  CLI_SendString("  heartbeat [on|off] - Control heartbeat LED (GPIO_PD2)\r\n");
+  CLI_SendString("\r\n");
+}
+
+void CLI_PrintSystemInfo(void)
+{
+  char buffer[200];
+  snprintf(buffer, sizeof(buffer), "\r\nSystem Information:\r\n");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  Board: STM32H743VI\r\n");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  MCU: STM32H743xx\r\n");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  Clock: 400 MHz\r\n");  // Corrected from 256 MHz to actual frequency
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  UART Baudrate: 115200\r\n");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  CLI Version: 1.0\r\n");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  Status: Running\r\n");
+  CLI_SendString(buffer);
+  CLI_SendString("\r\n");
+}
+
+void CLI_ProcessCommand(char *cmd)
+{
+  // Convert command to lowercase for easier parsing
+  for(int i = 0; cmd[i]; i++){
+    if(cmd[i] >= 'A' && cmd[i] <= 'Z'){
+      cmd[i] = cmd[i] + 32;
+    }
+  }
+
+  if(strcmp(cmd, "help") == 0){
+    CLI_PrintHelp();
+  }else if(strcmp(cmd, "sysinfo") == 0){
+    CLI_PrintSystemInfo();
+  }else if(strncmp(cmd, "heartbeat", 9) == 0){
+    char *params = cmd + 9;
+    while(*params == ' ') params++; // Skip spaces
+
+    if(strcmp(params, "on") == 0){
+      // Ensure heartbeat continues
+      CLI_SendString("\r\nHeartbeat enabled.\r\n");
+    }else if(strcmp(params, "off") == 0){
+      // Turn off heartbeat LED
+      HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
+      CLI_SendString("\r\nHeartbeat disabled.\r\n");
+    }else{
+      char response[50];
+      snprintf(response, sizeof(response), "\r\nHeartbeat LED status: %s\r\n", 
+               (HAL_GPIO_ReadPin(GREEN_LED_GPIO_Port, GREEN_LED_Pin) == GPIO_PIN_SET) ? "ON" : "OFF");
+      CLI_SendString(response);
+    }
+  }else{
+    CLI_SendString("\r\nUnknown command. Type 'help' for available commands.\r\n");
+  }
+}
+
 #ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
