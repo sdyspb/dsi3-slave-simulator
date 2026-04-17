@@ -110,6 +110,16 @@ Available CLI commands:
 | `help`  | Show command summary |
 
 ## Functional Description
+
+### ADC Acquisition Flow
+
+1. The DSI3 master sends a command on the bus.
+2. The comparator (COMP1) detects the falling edge of the incoming signal.
+3. The comparator ISR toggles `GPIO_PD3` (command indicator) and starts `HAL_SPI_Receive_DMA()` to capture 100 samples from the active ADC channel.
+4. After DMA completes, a callback processes the raw 16‑bit values, applies the corresponding scaling factor (`ADC_Ki` or `ADC_Ku`), and stores the result.
+5. The processed data is then passed to the DSI3 command parser.
+6. According to the parsed command, the system generates a response using Timer 1 current pulses (12 mA or 24 mA).
+
 ```mermaid
 stateDiagram-v2
 direction LR
@@ -138,15 +148,6 @@ direction LR
     
     ResponseGenerator --> [*]
 ```
-### ADC Acquisition Flow
-
-1. The DSI3 master sends a command on the bus.
-2. The comparator (COMP1) detects the falling edge of the incoming signal.
-3. The comparator ISR toggles `GPIO_PD3` (command indicator) and starts `HAL_SPI_Receive_DMA()` to capture 100 samples from the active ADC channel.
-4. After DMA completes, a callback processes the raw 16‑bit values, applies the corresponding scaling factor (`ADC_Ki` or `ADC_Ku`), and stores the result.
-5. The processed data is then passed to the DSI3 command parser.
-6. According to the parsed command, the system generates a response using Timer 1 current pulses (12 mA or 24 mA).
-
 ### DSI3 Response Generation
 
 - **12 mA pulse** – `GPIO_PE9` toggled by Timer 1 channel
