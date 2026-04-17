@@ -1,4 +1,5 @@
 {
     "Lingma.cloudModelAutoTriggerGenerateLength": "long",
-    "Lingma.cloudModelManualTriggerGenerateLength": "long"
+    "Lingma.cloudModelManualTriggerGenerateLength": "long",
+    "Lingma.PreferredLanguage forCommitMessage": "English"
 }

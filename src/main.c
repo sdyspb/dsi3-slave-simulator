@@ -19,6 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "gpio.h"
+#include "spi.h"  // Added SPI header
+#include "dma.h"  // Added DMA header
 #include "usart.h"
 #include "string.h"
 #include "stdio.h"
@@ -103,7 +105,9 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART1_UART_Init();
+  MX_SPI2_Init();  // Call SPI2 initialization
+  MX_DMA_Init();   // Insert DMA initialization here
+  MX_USART1_UART_Init();  // Then USART1
   
   /* USER CODE BEGIN 2 */
   
