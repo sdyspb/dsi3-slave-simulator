@@ -85,7 +85,7 @@ The system is intended for testing, debugging, and emulating DSI3 slave devices 
 ### Prerequisites
 
 - **STM32CubeMX** – to regenerate the project for your toolchain (IAR, Keil, STM32CubeIDE, or Makefile)
-- **ARM GCC** (or any compatible toolchain) for building
+- **VS Code** (or any compatible toolchain) for building
 - **Serial terminal** (PuTTY, minicom, screen) for CLI access over USART1
 - **DSI3 master / oscilloscope** for testing the generated current pulses
 
@@ -104,7 +104,7 @@ Available CLI commands:
 
 | Command | Description |
 |---------|-------------|
-| `info`  | Display system information (MCU frequency, ADC scaling factors, buffer status) |
+| `sysinfo` | Display system information (MCU frequency, ADC scaling factors, buffer status) |
 | `adc_read <channel> <num_samples>` | Read and print ADC samples from the specified channel (0 or 1) |
 | `adc_set <channel>` | Set the active ADC channel (0 = current, 1 = voltage) – defaults to channel 0 |
 | `help`  | Show command summary |
