@@ -324,9 +324,9 @@ void CLI_PrintSystemInfo(void)
   char buffer[200];
   snprintf(buffer, sizeof(buffer), "\r\nSystem Information:\r\n");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  Board: STM32H743VI\r\n");
+  snprintf(buffer, sizeof(buffer), "  Board: DSI3 Simulator Board\r\n");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  MCU: STM32H743xx\r\n");
+  snprintf(buffer, sizeof(buffer), "  MCU: STM32H743VIT6\r\n");
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  Clock: 400 MHz\r\n");
   CLI_SendString(buffer);
