@@ -20,3 +20,4 @@ System Information:
   CLI Version: 1.0
   Status: Running
 ```
+<img width="1080" height="865" alt="dsi3" src="https://github.com/user-attachments/assets/588c5013-d171-46b3-b0d0-04ad6dce4b08" />
