@@ -53,8 +53,8 @@ The system is intended for testing, debugging, and emulating DSI3 slave devices 
 ## Features
 
 - [x] CLI console over USART1 for system info, ADC read/set, and debugging
-- [x] Comparator interrupt toggles `GPIO_PD3` (DSI3 command indicator)
-- [x] SPI DMA acquisition of 100 ADC samples on each comparator trigger
+- [x] Comparator interrupt toggles `GPIO_PD3` (DSI3 command indicator) of first command pulse
+- [x] SPI DMA acquisition of 100 ADC samples on each first comparator trigger
 - [x] DMA completion interrupt – processes the acquired data
 - [x] DSI3 command parser (protocol decoding)
 - [x] DSI3 response generation (12 mA / 24 mA current pulses)
