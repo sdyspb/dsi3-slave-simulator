@@ -59,7 +59,33 @@ The system is intended for testing, debugging, and emulating DSI3 slave devices 
 - [x] DSI3 command parser (protocol decoding)
 - [x] DSI3 response generation (12 mA / 24 mA current pulses)
 - [ ] Ethernet MII stack (planned)
-
+```mermaid
+stateDiagram-v2
+    [*] --> WaitFallingEdge
+    
+    state WaitFallingEdge {
+        Comp1
+    }
+    
+    state Extio21Interrupt {
+        Acq100Samples
+    }
+  
+    state CommandProcessing {
+        ReadAdcBuffer --> BitFiltering
+        BitFiltering --> CommandParsing
+    }
+    
+    state ResponseGenerator {
+        CurrentBitCoding
+    }
+    
+    WaitFallingEdge --> Extio21Interrupt: CommandStart
+    Extio21Interrupt --> CommandProcessing: CommandEnd
+    CommandProcessing --> ResponseGenerator
+    
+    ResponseGenerator --> [*]
+```
 ## Project Structure
 ```
     PIO-DSI3/
