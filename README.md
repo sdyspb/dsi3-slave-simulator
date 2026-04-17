@@ -61,6 +61,7 @@ The system is intended for testing, debugging, and emulating DSI3 slave devices 
 - [ ] Ethernet MII stack (planned)
 ```mermaid
 stateDiagram-v2
+direction LR
     [*] --> WaitFallingEdge
     
     state WaitFallingEdge {
@@ -72,8 +73,8 @@ stateDiagram-v2
     }
   
     state CommandProcessing {
-        ReadAdcBuffer --> BitFiltering
-        BitFiltering --> CommandParsing
+    direction LR
+        ReadAdcBuffer --> CommandParsing
     }
     
     state ResponseGenerator {
