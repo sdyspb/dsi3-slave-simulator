@@ -22,6 +22,9 @@
 
 /* USER CODE BEGIN 0 */
 
+// External declaration of ADC buffer defined in main.c
+extern uint16_t adc_buffer[ADC_BUFFER_SIZE];
+
 /* USER CODE END 0 */
 
 SPI_HandleTypeDef hspi2;
@@ -177,5 +180,35 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 }
 
 /* USER CODE BEGIN 1 */
+
+/**
+  * @brief  Starts DMA reading from SPI for ADC samples
+  * @param  None
+  * @retval None
+  */
+void StartSPIDMAADCReading(void)
+{
+    // Start DMA receive for 100 samples (each sample is 16-bit)
+    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
+        // Error handling could be added here if needed
+        // For now, just return
+        return;
+    }
+}
+
+/**
+  * @brief  Rx Transfer completed callbacks
+  * @param  hspi: SPI handle
+  * @retval None
+  */
+void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi->Instance == SPI2) {
+        // Turn on red LED briefly to indicate completion of capture
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET); // Active-low, so RESET = ON
+        HAL_Delay(50); // Keep LED on for 50ms to be visible
+        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET);  // Turn OFF red LED
+    }
+}
 
 /* USER CODE END 1 */

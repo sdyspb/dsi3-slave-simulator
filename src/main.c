@@ -31,6 +31,11 @@
 
 /* USER CODE END Includes */
 
+/* Exported variables ---------------------------------------------------------*/
+/* USER CODE BEGIN EV */
+extern SPI_HandleTypeDef hspi2;
+/* USER CODE END EV */
+
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
@@ -55,6 +60,8 @@ uint32_t cli_idx = 0;
 uint8_t rx_data;
 uint32_t last_heartbeat_toggle = 0;
 uint8_t heartbeat_enabled = 1;
+
+uint16_t adc_buffer[ADC_BUFFER_SIZE]; // Buffer to store ADC samples (100 samples of 16-bit each)
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -316,6 +323,7 @@ void CLI_PrintHelp(void)
   CLI_SendString("  help              - Show this help message\r\n");
   CLI_SendString("  sysinfo           - Display system information\r\n");
   CLI_SendString("  heartbeat [on|off] - Control heartbeat LED (GPIO_PD2)\r\n");
+  CLI_SendString("  test_adc_capture  - Test ADC capture via SPI2 (100 samples)\r\n");
 }
 
 /**
@@ -382,6 +390,28 @@ void CLI_ProcessCommand(char *cmd)
     }else{
       CLI_SendString("\r\nInvalid parameter. Use 'on' or 'off'.\r\n");
     }
+  }else if(strcmp(cmd, "test_adc_capture") == 0){
+    // Test ADC capture functionality without COMP trigger
+    CLI_SendString("\r\nTesting ADC capture of 100 samples...\r\n");
+    
+    // Turn on red LED (GPIO_PD3) to indicate start of capture
+    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
+    
+    // Initialize SPI2 if not already done
+    if(hspi2.Instance == NULL){
+        MX_SPI2_Init();
+    }
+    
+    // Start DMA receive for 100 samples using the dedicated function
+    StartSPIDMAADCReading();
+    
+    // Wait briefly to allow for some data capture
+    HAL_Delay(100);
+    
+    // Turn off red LED (GPIO_PD3) to indicate end of capture attempt
+    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
+    
+    CLI_SendString("\r\nADC capture test initiated.\r\n");
   }else{
     CLI_SendString("\r\nUnknown command. Type 'help' for available commands.\r\n");
   }
