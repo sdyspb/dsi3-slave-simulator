@@ -403,9 +403,6 @@ void CLI_ProcessCommand(char *cmd)
     // Test ADC capture functionality without COMP trigger
     CLI_SendString("\r\nTesting ADC capture of 128 samples...\r\n");   // Updated message to reflect 128 samples
     
-    // Turn on red LED (GPIO_PD3) to indicate start of capture
-    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
-    
     // Initialize SPI2 if not already done
     if(hspi2.Instance == NULL){
         MX_SPI2_Init();
@@ -415,18 +412,16 @@ void CLI_ProcessCommand(char *cmd)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
         CLI_SendString("\r\nError: Failed to start SPI DMA receive.\r\n");
         
-        // Turn off red LED (GPIO_PD3)
-        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
-        
         return;
     }
-    
+  /*  
+    // Turn on red LED (GPIO_PD3) to indicate start of capture
+    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
     // Wait briefly to allow for some data capture
-    HAL_Delay(100);
-    
+    HAL_Delay(500);
     // Turn off red LED (GPIO_PD3) to indicate end of capture attempt
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
-    
+  */  
     CLI_SendString("\r\nADC capture test initiated.\r\n");
   }else{
     CLI_SendString("\r\nUnknown command. Type 'help' for available commands.\r\n");

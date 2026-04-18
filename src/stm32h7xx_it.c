@@ -63,6 +63,9 @@ extern DMA_HandleTypeDef hdma_spi2_rx;
 extern SPI_HandleTypeDef hspi2;
 /* USER CODE BEGIN EV */
 
+// External declaration of ADC buffer defined in main.c
+extern uint16_t adc_buffer[ADC_BUFFER_SIZE];
+
 /* USER CODE END EV */
 
 /******************************************************************************/
@@ -271,12 +274,16 @@ void COMP_IRQHandler(void)
   // Disable further interrupts from comparator to prevent re-triggering during data acquisition
   HAL_COMP_Stop_IT(&hcomp1);
   
-  // Removed LED control - now handled in DMA interrupt after 128 samples received
-  // Start ADC data capture via SPI DMA (128 samples as required)
-  StartSPIDMAADCReading();
+  // Start DMA receive for 128 samples (each sample is 16-bit)
+  if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
+        
+      return;
+  }
   
   /* USER CODE END COMP_IRQn 0 */
+
   HAL_COMP_IRQHandler(&hcomp1);
+
   /* USER CODE BEGIN COMP_IRQn 1 */
 
   /* USER CODE END COMP_IRQn 1 */

@@ -23,9 +23,6 @@
 
 /* USER CODE BEGIN 0 */
 
-// External declaration of ADC buffer defined in main.c
-extern uint16_t adc_buffer[ADC_BUFFER_SIZE];
-
 // External declaration of comparator handle
 extern COMP_HandleTypeDef hcomp1;
 
@@ -190,15 +187,6 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
   * @param  None
   * @retval None
   */
-void StartSPIDMAADCReading(void)
-{
-    // Start DMA receive for 128 samples (each sample is 16-bit)
-    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
-        // Error handling could be added here if needed
-        // For now, just return
-        return;
-    }
-}
 
 /**
   * @brief  Rx Transfer completed callbacks

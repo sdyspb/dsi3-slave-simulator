@@ -42,8 +42,7 @@ extern SPI_HandleTypeDef hspi2;
 void MX_SPI2_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-// Функция для запуска DMA чтения данных от АЦП
-void StartSPIDMAADCReading(void);
+
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
