@@ -188,7 +188,7 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
   */
 void StartSPIDMAADCReading(void)
 {
-    // Start DMA receive for 100 samples (each sample is 16-bit)
+    // Start DMA receive for 128 samples (each sample is 16-bit)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
         // Error handling could be added here if needed
         // For now, just return

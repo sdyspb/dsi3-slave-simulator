@@ -323,7 +323,7 @@ void CLI_PrintHelp(void)
   CLI_SendString("  help              - Show this help message\r\n");
   CLI_SendString("  sysinfo           - Display system information\r\n");
   CLI_SendString("  heartbeat [on|off] - Control heartbeat LED (GPIO_PD2)\r\n");
-  CLI_SendString("  test_adc_capture  - Test ADC capture via SPI2 (100 samples)\r\n");
+  CLI_SendString("  testadc           - Test ADC capture via SPI2 (128 samples)\r\n");  // Updated command name and sample count
 }
 
 /**
@@ -390,9 +390,9 @@ void CLI_ProcessCommand(char *cmd)
     }else{
       CLI_SendString("\r\nInvalid parameter. Use 'on' or 'off'.\r\n");
     }
-  }else if(strcmp(cmd, "test_adc_capture") == 0){
+  }else if(strcmp(cmd, "testadc") == 0){       // Changed from "test_adc_capture" to "testadc"
     // Test ADC capture functionality without COMP trigger
-    CLI_SendString("\r\nTesting ADC capture of 100 samples...\r\n");
+    CLI_SendString("\r\nTesting ADC capture of 128 samples...\r\n");   // Updated message to reflect 128 samples
     
     // Turn on red LED (GPIO_PD3) to indicate start of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
@@ -402,8 +402,15 @@ void CLI_ProcessCommand(char *cmd)
         MX_SPI2_Init();
     }
     
-    // Start DMA receive for 100 samples using the dedicated function
-    StartSPIDMAADCReading();
+    // Start DMA receive for 128 samples using the dedicated function (each sample is 16-bit)
+    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
+        CLI_SendString("\r\nError: Failed to start SPI DMA receive.\r\n");
+        
+        // Turn off red LED (GPIO_PD3)
+        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
+        
+        return;
+    }
     
     // Wait briefly to allow for some data capture
     HAL_Delay(100);

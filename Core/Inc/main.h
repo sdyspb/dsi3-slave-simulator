@@ -76,7 +76,7 @@ void Error_Handler(void);
 #define RED_LED_Pin GPIO_PIN_3
 #define RED_LED_GPIO_Port GPIOD
 
-#define ADC_BUFFER_SIZE 100     // Number of ADC samples to capture
+#define ADC_BUFFER_SIZE 128     // Number of ADC samples to capture (changed from 100 to 128)
 
 /* USER CODE BEGIN Private defines */
 
