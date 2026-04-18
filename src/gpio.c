@@ -58,7 +58,8 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(CHSEL_GPIO_Port, CHSEL_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GREEN_LED_Pin|RED_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, GREEN_LED_Pin, GPIO_PIN_RESET);  // Green LED stays ON by default
+  HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);     // Red LED is OFF by default (active-low)
 
   /*Configure GPIO pins : PE2 PE3 PE4 PE5
                            PE6 PE7 PE8 PE10
