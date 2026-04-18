@@ -19,11 +19,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "spi.h"
+#include "comp.h"  // Include comp.h to access comparator functions
 
 /* USER CODE BEGIN 0 */
 
 // External declaration of ADC buffer defined in main.c
 extern uint16_t adc_buffer[ADC_BUFFER_SIZE];
+
+// External declaration of comparator handle
+extern COMP_HandleTypeDef hcomp1;
 
 /* USER CODE END 0 */
 
@@ -204,10 +208,8 @@ void StartSPIDMAADCReading(void)
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi->Instance == SPI2) {
-        // Turn on red LED briefly to indicate completion of capture
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET); // Active-low, so RESET = ON
-        HAL_Delay(50); // Keep LED on for 50ms to be visible
-        HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_SET);  // Turn OFF red LED
+        // According to specification, SPI interrupt should not handle comparator restart
+        // Only DMA interrupt should handle comparator restart
     }
 }
 

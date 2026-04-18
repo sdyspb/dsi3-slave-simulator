@@ -20,6 +20,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32h7xx_it.h"
+#include "spi.h"  // Include spi.h to access StartSPIDMAADCReading function
+#include "comp.h" // Include comp.h to access comparator functions
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -211,6 +214,23 @@ void DMA1_Stream0_IRQHandler(void)
   HAL_DMA_IRQHandler(&hdma_spi2_rx);
   /* USER CODE BEGIN DMA1_Stream0_IRQn 1 */
 
+  // After DMA transfer is complete, re-enable comparator interrupt
+  // Check if the transfer complete flag is set for the SPI2_RX DMA
+  if(__HAL_DMA_GET_FLAG(&hdma_spi2_rx, __HAL_DMA_GET_TC_FLAG_INDEX(&hdma_spi2_rx))) {
+      // Clear the DMA transfer complete flag
+      __HAL_DMA_CLEAR_FLAG(&hdma_spi2_rx, __HAL_DMA_GET_TC_FLAG_INDEX(&hdma_spi2_rx));
+      
+      // Turn on red LED briefly to indicate completion of capture
+      HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
+      HAL_Delay(50); // Keep LED on for 50ms to be visible
+      HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);  // Turn OFF red LED
+      
+      // Re-enable comparator interrupt to allow next trigger event
+      if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK) {
+          // Error handling if needed
+      }
+  }
+
   /* USER CODE END DMA1_Stream0_IRQn 1 */
 }
 
@@ -247,7 +267,14 @@ void DMAMUX1_OVR_IRQHandler(void)
 void COMP_IRQHandler(void)
 {
   /* USER CODE BEGIN COMP_IRQn 0 */
-
+  
+  // Disable further interrupts from comparator to prevent re-triggering during data acquisition
+  HAL_COMP_Stop_IT(&hcomp1);
+  
+  // Removed LED control - now handled in DMA interrupt after 128 samples received
+  // Start ADC data capture via SPI DMA (128 samples as required)
+  StartSPIDMAADCReading();
+  
   /* USER CODE END COMP_IRQn 0 */
   HAL_COMP_IRQHandler(&hcomp1);
   /* USER CODE BEGIN COMP_IRQn 1 */

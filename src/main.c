@@ -22,6 +22,7 @@
 #include "spi.h"  // Added SPI header
 #include "dma.h"  // Added DMA header
 #include "usart.h"
+#include "comp.h"  // Added COMP header
 #include "string.h"
 #include "stdio.h"
 #include "stdarg.h"
@@ -115,11 +116,19 @@ int main(void)
   MX_SPI2_Init();  // Call SPI2 initialization
   MX_DMA_Init();   // Insert DMA initialization here
   MX_USART1_UART_Init();  // Then USART1
+  MX_COMP1_Init(); // Initialize comparator
   
   /* USER CODE BEGIN 2 */
   
   // Turn OFF heartbeat LED initially (set to HIGH for active-low LED)
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+  
+  // Start comparator after all initializations are complete
+  if(HAL_COMP_Start(&hcomp1) != HAL_OK)
+  {
+      // Error handling - could add error indication if needed
+      CLI_SendString("\r\nError: Comparator start failed.\r\n");
+  }
   
   // Small delay to ensure UART is ready
   HAL_Delay(100);
