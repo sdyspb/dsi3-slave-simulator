@@ -51,6 +51,8 @@ extern "C" {
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
+void CLI_SendString(char *str);
+void CLI_SendRawString(char *str);  // New function for sending raw strings without timestamp
 
 /* USER CODE BEGIN EFP */
 

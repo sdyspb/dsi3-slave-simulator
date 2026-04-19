@@ -23,6 +23,9 @@
 
 /* USER CODE BEGIN 0 */
 
+// External declaration of ADC buffer defined in main.c
+extern uint16_t adc_buffer[ADC_BUFFER_SIZE];
+
 // External declaration of comparator handle
 extern COMP_HandleTypeDef hcomp1;
 
@@ -133,6 +136,18 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     hdma_spi2_rx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
     hdma_spi2_rx.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_spi2_rx.Init.PeriphBurst = DMA_PBURST_SINGLE;
+    /*
+    hdma_spi2_rx.Instance = DMA1_Stream0;
+    hdma_spi2_rx.Init.Request = DMA_REQUEST_SPI2_RX;
+    hdma_spi2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_spi2_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_spi2_rx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_spi2_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+    hdma_spi2_rx.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+    hdma_spi2_rx.Init.Mode = DMA_NORMAL;
+    hdma_spi2_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+    hdma_spi2_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    */
     if (HAL_DMA_Init(&hdma_spi2_rx) != HAL_OK)
     {
       Error_Handler();
@@ -196,8 +211,16 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     if (hspi->Instance == SPI2) {
-        // According to specification, SPI interrupt should not handle comparator restart
-        // Only DMA interrupt should handle comparator restart
+        // Turn on red LED briefly to indicate completion of capture
+        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
+        HAL_Delay(50); // Keep LED on for 50ms to be visible
+        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);  // Turn OFF red LED
+        
+        // Re-enable comparator interrupt to allow next trigger event
+        if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK)
+        {
+            // Error handling if needed
+        }
     }
 }
 

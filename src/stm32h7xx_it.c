@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 #include "spi.h"  // Include spi.h to access StartSPIDMAADCReading function
 #include "comp.h" // Include comp.h to access comparator functions
+#include "tim2.h" // Include tim2.h to access TIM2 functions
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -217,23 +218,6 @@ void DMA1_Stream0_IRQHandler(void)
   HAL_DMA_IRQHandler(&hdma_spi2_rx);
   /* USER CODE BEGIN DMA1_Stream0_IRQn 1 */
 
-  // After DMA transfer is complete, re-enable comparator interrupt
-  // Check if the transfer complete flag is set for the SPI2_RX DMA
-  if(__HAL_DMA_GET_FLAG(&hdma_spi2_rx, __HAL_DMA_GET_TC_FLAG_INDEX(&hdma_spi2_rx))) {
-      // Clear the DMA transfer complete flag
-      __HAL_DMA_CLEAR_FLAG(&hdma_spi2_rx, __HAL_DMA_GET_TC_FLAG_INDEX(&hdma_spi2_rx));
-      
-      // Turn on red LED briefly to indicate completion of capture
-      HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
-      HAL_Delay(50); // Keep LED on for 50ms to be visible
-      HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);  // Turn OFF red LED
-      
-      // Re-enable comparator interrupt to allow next trigger event
-      if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK) {
-          // Error handling if needed
-      }
-  }
-
   /* USER CODE END DMA1_Stream0_IRQn 1 */
 }
 
@@ -276,7 +260,7 @@ void COMP_IRQHandler(void)
   
   // Start DMA receive for 128 samples (each sample is 16-bit)
   if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
-        
+      // Error handling could be added here if needed
       return;
   }
   
@@ -287,6 +271,17 @@ void COMP_IRQHandler(void)
   /* USER CODE BEGIN COMP_IRQn 1 */
 
   /* USER CODE END COMP_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM2 global interrupt.
+  */
+void TIM2_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM2_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim2);
+  TIM2_IncrementCounter(); // Increment the microsecond counter
+  /* USER CODE END TIM2_IRQn 0 */
 }
 
 /* USER CODE BEGIN 1 */

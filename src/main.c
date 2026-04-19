@@ -18,7 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "gpio.h"
+#include "gpio.h"  // Added GPIO header
+#include "tim.h"
+#include "tim2.h"  // Include header for TIM2
 #include "spi.h"  // Added SPI header
 #include "dma.h"  // Added DMA header
 #include "usart.h"
@@ -62,7 +64,8 @@ uint8_t rx_data;
 uint32_t last_heartbeat_toggle = 0;
 uint8_t heartbeat_enabled = 1;
 
-uint16_t adc_buffer[ADC_BUFFER_SIZE]; // Buffer to store ADC samples (100 samples of 16-bit each)
+uint16_t adc_buffer[ADC_BUFFER_SIZE]; // Buffer to store ADC samples
+uint8_t comp_started = 0; // Flag to track if comparator has been started
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -117,6 +120,7 @@ int main(void)
   MX_DMA_Init();   // Insert DMA initialization here
   MX_USART1_UART_Init();  // Then USART1
   MX_COMP1_Init(); // Initialize comparator
+  MX_TIM2_Init();  // Initialize TIM2 for high precision timing
   
   /* USER CODE BEGIN 2 */
   
@@ -134,10 +138,10 @@ int main(void)
   HAL_Delay(100);
   
   // Send welcome message via USART1
-  CLI_SendString("\r\n================================\r\n");
-  CLI_SendString("DSI3 Slave Simulator Started\r\n");
-  CLI_SendString("Type 'help' for available commands\r\n");
-  CLI_SendString("================================\r\n");
+  CLI_SendString("================================\r");
+  CLI_SendString("DSI3 Slave Simulator Started\r");
+  CLI_SendString("Type 'help' for available commands\r");
+  CLI_SendString("================================\r");
   CLI_SendPrompt();
 
   /* USER CODE END 2 */
@@ -302,13 +306,55 @@ void Error_Handler(void)
 /* USER CODE BEGIN 4 */
 
 /**
-  * @brief  Sends a string via UART
-  * @param  str: Pointer to the string to be sent
+  * @brief  This function provides delay in milliseconds
+  * @param  delay: Delay in milliseconds
+  * @retval None
+  */
+void CLI_Delay(uint32_t delay)
+{
+  HAL_Delay(delay);
+}
+
+/**
+  * @brief  Send a string over UART
+  * @param  str: String to send
   * @retval None
   */
 void CLI_SendString(char *str)
 {
-  HAL_UART_Transmit(&huart1, (uint8_t *)str, strlen(str), HAL_MAX_DELAY);
+  static uint8_t first_message_sent = 0;  // Flag to track if first message has been sent
+  
+  // Get current time in 100-microsecond units
+  uint32_t time_ms = get_us_tick() * 100;  // Convert to microseconds
+  uint32_t time_s = time_ms / 1000000;    // Convert to seconds
+  uint32_t remainder_us = time_ms % 1000000; // Remaining microseconds
+  
+  // Format time string as "sssssssss.ffffff: " (seconds.microseconds)
+  char time_str[30];  // Enough space for formatted time
+  
+  // For the first message, don't add \r\n at the beginning to avoid extra line
+  if (!first_message_sent) {
+    sprintf(time_str, "%09lu.%06lu: ", time_s, remainder_us);
+    first_message_sent = 1;
+  } else {
+    sprintf(time_str, "\r\n%09lu.%06lu: ", time_s, remainder_us);
+  }
+  
+  // Send the timestamp
+  HAL_UART_Transmit(&huart1, (uint8_t*)time_str, strlen(time_str), HAL_MAX_DELAY);
+  
+  // Send the actual message
+  HAL_UART_Transmit(&huart1, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
+}
+
+/**
+  * @brief  Send raw string without timestamp
+  * @param  str: String to send
+  * @retval None
+  */
+void CLI_SendRawString(char *str)
+{
+  HAL_UART_Transmit(&huart1, (uint8_t*)str, strlen(str), HAL_MAX_DELAY);
 }
 
 /**
@@ -328,11 +374,13 @@ void CLI_SendPrompt(void)
   */
 void CLI_PrintHelp(void)
 {
-  CLI_SendString("\r\nAvailable Commands:\r\n");
-  CLI_SendString("  help              - Show this help message\r\n");
-  CLI_SendString("  sysinfo           - Display system information\r\n");
-  CLI_SendString("  heartbeat [on|off] - Control heartbeat LED (GPIO_PD2)\r\n");
-  CLI_SendString("  testadc           - Test ADC capture via SPI2 (128 samples)\r\n");  // Updated command name and sample count
+  CLI_SendString("  Available commands:\r");
+  CLI_SendString("  help          - Show this help message\r");
+  CLI_SendString("  sysinfo       - Display system information\r");
+  CLI_SendString("  heartbeat     - Toggle heartbeat LED (GPIO_PD2)\r");
+  CLI_SendString("  testadc       - Test ADC capture of 128 samples via SPI2 DMA\r");
+  CLI_SendString("  getbuf        - Display ADC buffer contents (sample number - hex value)\r");
+//  CLI_SendString("  <cr>/<lf>     - Show this help message\r");
 }
 
 /**
@@ -343,19 +391,19 @@ void CLI_PrintHelp(void)
 void CLI_PrintSystemInfo(void)
 {
   char buffer[200];
-  snprintf(buffer, sizeof(buffer), "\r\nSystem Information:\r\n");
+  snprintf(buffer, sizeof(buffer), "  System Information:\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  Board: DSI3 Simulator Board\r\n");
+  snprintf(buffer, sizeof(buffer), "  Board: DSI3 Simulator Board\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  MCU: STM32H743VIT6\r\n");
+  snprintf(buffer, sizeof(buffer), "  MCU: STM32H743VIT6\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  Clock: 400 MHz\r\n");
+  snprintf(buffer, sizeof(buffer), "  Clock: 400 MHz\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  UART Baudrate: 115200\r\n");
+  snprintf(buffer, sizeof(buffer), "  UART Baudrate: 115200\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  CLI Version: 1.0\r\n");
+  snprintf(buffer, sizeof(buffer), "  CLI Version: 1.0\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  Status: Running\r\n");
+  snprintf(buffer, sizeof(buffer), "  Status: Running\r");
   CLI_SendString(buffer);
 }
 
@@ -366,65 +414,84 @@ void CLI_PrintSystemInfo(void)
   */
 void CLI_ProcessCommand(char *cmd)
 {
-  // Convert command to lowercase for easier parsing
-  for(int i = 0; cmd[i]; i++){
-    if(cmd[i] >= 'A' && cmd[i] <= 'Z'){
-      cmd[i] = cmd[i] + 32;
-    }
-  }
-
+  // Parse the command and perform actions accordingly
   if(strcmp(cmd, "help") == 0){
     CLI_PrintHelp();
   }else if(strcmp(cmd, "sysinfo") == 0){
     CLI_PrintSystemInfo();
-  }else if(strncmp(cmd, "heartbeat", 9) == 0){
-    char *params = cmd + 9;
-    while(*params == ' ') params++; // Skip spaces
-
-    if(strlen(params) == 0){
-      char response[50];
-      snprintf(response, sizeof(response), "\r\nHeartbeat status: %s\r\n", 
-               heartbeat_enabled ? "Enabled" : "Disabled");
-      CLI_SendString(response);
-    }else if(strcmp(params, "on") == 0){
-      heartbeat_enabled = 1;
-      // Make sure LED is in the correct state
-      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
+  }else if(strcmp(cmd, "heartbeat") == 0){
+    // Toggle heartbeat state
+    heartbeat_enabled = !heartbeat_enabled;
+    if(heartbeat_enabled){
       CLI_SendString("\r\nHeartbeat enabled.\r\n");
-    }else if(strcmp(params, "off") == 0){
-      heartbeat_enabled = 0;
-      // Turn off heartbeat LED (set HIGH for active-low LED)
-      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
-      CLI_SendString("\r\nHeartbeat disabled.\r\n");
     }else{
-      CLI_SendString("\r\nInvalid parameter. Use 'on' or 'off'.\r\n");
+      CLI_SendString("\r\nHeartbeat disabled.\r\n");
     }
   }else if(strcmp(cmd, "testadc") == 0){       // Changed from "test_adc_capture" to "testadc"
     // Test ADC capture functionality without COMP trigger
-    CLI_SendString("\r\nTesting ADC capture of 128 samples...\r\n");   // Updated message to reflect 128 samples
+    CLI_SendString("  Testing ADC capture of 128 samples...\r");   // Updated message to reflect 128 samples
+    
+    // Turn on red LED (GPIO_PD3) to indicate start of capture
+    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
     
     // Initialize SPI2 if not already done
     if(hspi2.Instance == NULL){
         MX_SPI2_Init();
     }
     
-    // Start DMA receive for 128 samples using the dedicated function (each sample is 16-bit)
-    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
-        CLI_SendString("\r\nError: Failed to start SPI DMA receive.\r\n");
-        
-        return;
+    // Start comparator if not already started
+    if(!comp_started){
+        if(HAL_COMP_Start(&hcomp1) != HAL_OK)
+        {
+            // Error handling - could add error indication if needed
+            CLI_SendString("  Error: Comparator start failed.\r");
+        }
+        comp_started = 1;
     }
-  /*  
-    // Turn on red LED (GPIO_PD3) to indicate start of capture
-    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
+    
+    // Start DMA receive for 128 samples (each sample is 16-bit)
+    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
+        CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");
+    }
+    
     // Wait briefly to allow for some data capture
-    HAL_Delay(500);
+    HAL_Delay(100);
+    
     // Turn off red LED (GPIO_PD3) to indicate end of capture attempt
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
-  */  
-    CLI_SendString("\r\nADC capture test initiated.\r\n");
+    
+    CLI_SendString("  ADC capture test initiated.\r");
+  }else if(strcmp(cmd, "getbuf") == 0){
+    // Output ADC buffer contents in console with a single timestamp
+    CLI_SendString("  ADC Buffer Contents:\r");
+    
+    // Send buffer contents with only one timestamp
+    char buffer[256]; // Buffer to hold multiple entries
+    int pos = 0;
+    
+    for(int i = 0; i < ADC_BUFFER_SIZE; i++) {
+        // Calculate remaining space in buffer
+        int remaining_space = sizeof(buffer) - pos;
+        
+        // Add new entry to buffer
+        int written = snprintf(buffer + pos, remaining_space, "%3d - 0x%04X\r\n", i, adc_buffer[i]);
+        
+        // Check if we have enough space for more items
+        if(remaining_space - written < 60 || i == ADC_BUFFER_SIZE - 1 || pos > sizeof(buffer) - 60) {
+            // Send the chunk as raw string (without adding new timestamps)
+            CLI_SendRawString(buffer);
+            
+            // Reset buffer
+            pos = 0;
+            memset(buffer, 0, sizeof(buffer));
+        } else {
+            pos += written;
+        }
+    }
+    
+    CLI_SendString("  Buffer dump complete.\r");
   }else{
-    CLI_SendString("\r\nUnknown command. Type 'help' for available commands.\r\n");
+    CLI_SendString("  Unknown command. Type 'help' for available commands.\r");
   }
 }
 /* USER CODE END 4 */
