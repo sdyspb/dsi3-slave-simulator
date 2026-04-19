@@ -433,7 +433,7 @@ void CLI_ProcessCommand(char *cmd)
     
     // Turn on red LED (GPIO_PD3) to indicate start of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
-    
+/*    
     // Initialize SPI2 if not already done
     if(hspi2.Instance == NULL){
         MX_SPI2_Init();
@@ -448,14 +448,14 @@ void CLI_ProcessCommand(char *cmd)
         }
         comp_started = 1;
     }
-    
+*/    
     // Start DMA receive for 128 samples (each sample is 16-bit)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
         CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");
     }
     
     // Wait briefly to allow for some data capture
-    HAL_Delay(100);
+    HAL_Delay(50);
     
     // Turn off red LED (GPIO_PD3) to indicate end of capture attempt
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
@@ -463,7 +463,7 @@ void CLI_ProcessCommand(char *cmd)
     CLI_SendString("  ADC capture test initiated.\r");
   }else if(strcmp(cmd, "getbuf") == 0){
     // Output ADC buffer contents in console with a single timestamp
-    CLI_SendString("  ADC Buffer Contents:\r");
+    CLI_SendString("  ADC Buffer Contents:\r\n");
     
     // Send buffer contents with only one timestamp
     char buffer[256]; // Buffer to hold multiple entries
