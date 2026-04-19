@@ -1,24 +1,26 @@
 # DSI3 Simulator Board
 ```
-================================
-DSI3 Slave Simulator Started
-Type 'help' for available commands
-================================
-
+000000000.050400: ================================
+000000000.052600: DSI3 Slave Simulator Started
+000000000.054800: Type 'help' for available commands
+000000000.057200: ================================
+000000000.059500: 
 > help
-Available Commands:
-  help              - Show this help message
-  sysinfo           - Display system information
-  heartbeat [on|off] - Control heartbeat LED (GPIO_PD2)
-
+000000004.300900:   Available commands:
+000000004.302700:   help          - Show this help message
+000000004.305400:   sysinfo       - Display system information
+000000004.308200:   heartbeat     - Toggle heartbeat LED (GPIO_PD2)
+000000004.311300:   testadc       - Test ADC capture of 128 samples via SPI2 DMA
+000000004.314900:   getbuf        - Display ADC buffer contents (sample number - hex value)
+000000004.319000: 
 > sysinfo
-System Information:
-  Board: DSI3 Simulator Board
-  MCU: STM32H743VIT6
-  Clock: 400 MHz
-  UART Baudrate: 115200
-  CLI Version: 1.0
-  Status: Running
+000000006.535900:   System Information:
+000000006.537700:   Board: DSI3 Simulator Board
+000000006.539900:   MCU: STM32H743VIT6
+000000006.541700:   Clock: 400 MHz
+000000006.543300:   UART Baudrate: 115200
+000000006.545200:   CLI Version: 1.0
+000000006.546900:   Status: Running
 ```
 <img width="1080" height="865" alt="dsi3" src="https://github.com/user-attachments/assets/588c5013-d171-46b3-b0d0-04ad6dce4b08" />
 
