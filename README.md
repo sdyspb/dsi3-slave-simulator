@@ -102,12 +102,12 @@ The system is intended for testing, debugging, and emulating DSI3 slave devices 
 
 Connect to USART1 (baud rate 115200, 8N1). After reset you will see the system banner and a CLI prompt.
 
-Available CLI commands:
+Available CLI commands (for actual commands see main.c):
 
 | Command | Description |
 |---------|-------------|
 | `sysinfo` | Display system information (MCU frequency, ADC scaling factors, buffer status) |
-| `adc_read <channel> <num_samples>` | Read and print ADC samples from the specified channel (0 or 1) |
+| `testadc` | Read and print ADC samples from the specified channel (0 or 1) |
 | `adc_set <channel>` | Set the active ADC channel (0 = current, 1 = voltage) – defaults to channel 0 |
 | `help`  | Show command summary |
 
