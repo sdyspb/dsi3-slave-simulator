@@ -21,16 +21,54 @@
 #include "spi.h"
 #include "comp.h"  // Include comp.h to access comparator functions
 
+/* USER CODE BEGIN Includes */
+#include "main.h"  // Include main header to access adc_buffer
+/* USER CODE END Includes */
+
 /* USER CODE BEGIN 0 */
-
-// External declaration of ADC buffer defined in main.c
-extern uint16_t adc_buffer[ADC_BUFFER_SIZE];
-
-// External declaration of comparator handle
-extern COMP_HandleTypeDef hcomp1;
-
+extern uint16_t adc_buffer[ADC_BUFFER_SIZE];  // Declare external reference to adc_buffer
 /* USER CODE END 0 */
 
+/* USER CODE BEGIN PFP */
+/* Private function prototypes -----------------------------------------------*/
+/* USER CODE END PFP */
+
+/* External functions --------------------------------------------------------*/
+/* USER CODE BEGIN ExternalFunctions */
+
+/* USER CODE END ExternalFunctions */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
+/**
+  * @brief  Receives an amount of data in non blocking mode with DMA.
+  * @note   This function is modified to implement cache invalidation
+  * @param  hspi Pointer to a SPI_HandleTypeDef structure that contains
+  *                the configuration information for the specified SPI module.
+  * @param  pData Pointer to data buffer
+  * @param  Size Amount of data to be received
+  * @retval HAL status
+  */
+void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  if(hspi->Instance == SPI2)
+  {
+    // Turn off red LED (GPIO_PD3) to indicate end of capture
+    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
+
+    // Re-enable comparator interrupt to allow next trigger event
+    if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK)
+    {
+        // Error handling if needed
+    }
+  }
+}
+/* USER CODE BEGIN 1 */
+
+/* USER CODE END 1 */
 SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi2_rx;
 
@@ -196,32 +234,5 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* spiHandle)
 }
 
 /* USER CODE BEGIN 1 */
-
-/**
-  * @brief  Starts DMA reading from SPI for ADC samples
-  * @param  None
-  * @retval None
-  */
-
-/**
-  * @brief  Rx Transfer completed callbacks
-  * @param  hspi: SPI handle
-  * @retval None
-  */
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-    if (hspi->Instance == SPI2) {
-        // Turn on red LED briefly to indicate completion of capture
-        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
-        HAL_Delay(50); // Keep LED on for 50ms to be visible
-        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);  // Turn OFF red LED
-        
-        // Re-enable comparator interrupt to allow next trigger event
-        if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK)
-        {
-            // Error handling if needed
-        }
-    }
-}
 
 /* USER CODE END 1 */

@@ -64,7 +64,7 @@ uint8_t rx_data;
 uint32_t last_heartbeat_toggle = 0;
 uint8_t heartbeat_enabled = 1;
 
-uint16_t adc_buffer[ADC_BUFFER_SIZE]; // Buffer to store ADC samples
+uint16_t adc_buffer[ADC_BUFFER_SIZE] __attribute__((section(".dma_buffer"), aligned(32))); // Buffer to store ADC samples in DMA-accessible memory
 uint8_t comp_started = 0; // Flag to track if comparator has been started
 /* USER CODE END PV */
 
@@ -143,6 +143,10 @@ int main(void)
   CLI_SendString("Type 'help' for available commands\r");
   CLI_SendString("================================\r");
   CLI_SendPrompt();
+
+  char dbg[64];
+  sprintf(dbg, "ADC buffer addr: %p\r\n", adc_buffer);
+  CLI_SendRawString(dbg);
 
   /* USER CODE END 2 */
 
@@ -256,8 +260,7 @@ void SystemClock_Config(void)
 
 /* USER CODE END 4 */
 
- /* MPU Configuration */
-
+/* MPU Configuration */
 void MPU_Config(void)
 {
   MPU_Region_InitTypeDef MPU_InitStruct = {0};
@@ -267,22 +270,23 @@ void MPU_Config(void)
 
   /** Initializes and configures the Region and the memory to be protected
   */
+  // Configure region 0 - D2 SRAM - non-cacheable (for ADC buffer accessible by DMA)
   MPU_InitStruct.Enable = MPU_REGION_ENABLE;
   MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
+  MPU_InitStruct.BaseAddress = 0x30000000; // Base address of D2 SRAM
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB; // Size of D2 SRAM available
+  MPU_InitStruct.SubRegionDisable = 0x00;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE; // Non-cacheable memory for DMA
   MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
   /* Enables the MPU */
   HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
-
 }
 
 /**
@@ -433,37 +437,18 @@ void CLI_ProcessCommand(char *cmd)
     
     // Turn on red LED (GPIO_PD3) to indicate start of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
-/*    
-    // Initialize SPI2 if not already done
-    if(hspi2.Instance == NULL){
-        MX_SPI2_Init();
-    }
     
-    // Start comparator if not already started
-    if(!comp_started){
-        if(HAL_COMP_Start(&hcomp1) != HAL_OK)
-        {
-            // Error handling - could add error indication if needed
-            CLI_SendString("  Error: Comparator start failed.\r");
-        }
-        comp_started = 1;
-    }
-*/    
     // Start DMA receive for 128 samples (each sample is 16-bit)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
         CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");
+        // Turn off red LED in case of error
+        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);
+    } else {
+        CLI_SendString("  ADC capture test initiated.\r");
     }
-    
-    // Wait briefly to allow for some data capture
-    HAL_Delay(50);
-    
-    // Turn off red LED (GPIO_PD3) to indicate end of capture attempt
-    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
-    
-    CLI_SendString("  ADC capture test initiated.\r");
   }else if(strcmp(cmd, "getbuf") == 0){
     // Output ADC buffer contents in console with a single timestamp
-    CLI_SendString("  ADC Buffer Contents:\r\n");
+    CLI_SendString("\r\n  ADC Buffer Contents:\r\n");
     
     // Send buffer contents with only one timestamp
     char buffer[256]; // Buffer to hold multiple entries
