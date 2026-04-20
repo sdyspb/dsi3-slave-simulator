@@ -119,7 +119,7 @@ int main(void)
   MX_SPI2_Init();  // Call SPI2 initialization
   MX_DMA_Init();   // Insert DMA initialization here
   MX_USART1_UART_Init();  // Then USART1
-  MX_COMP1_Init(); // Initialize comparator
+//  MX_COMP1_Init(); // Initialize comparator
   MX_TIM2_Init();  // Initialize TIM2 for high precision timing
   
   /* USER CODE BEGIN 2 */
@@ -434,17 +434,30 @@ void CLI_ProcessCommand(char *cmd)
   }else if(strcmp(cmd, "testadc") == 0){       // Changed from "test_adc_capture" to "testadc"
     // Test ADC capture functionality without COMP trigger
     CLI_SendString("  Testing ADC capture of 128 samples...\r");   // Updated message to reflect 128 samples
-    
+  
+if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
+    HAL_SPI_DMAStop(&hspi2);
+    CLI_SendString("  Clearing ADC busy RX\r");
+}    
     // Turn on red LED (GPIO_PD3) to indicate start of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
     
-    // Start DMA receive for 128 samples (each sample is 16-bit)
-    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
+    // Start DMA receive for ADC_BUFFER_SIZE bytes (each sample is 16-bit)
+    if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
         CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");
         // Turn off red LED in case of error
         HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);
     } else {
         CLI_SendString("  ADC capture test initiated.\r");
+    }
+  }else if(strcmp(cmd, "pollcomp") == 0){
+    // Poll comparator output and capture ADC samples when COMP output is high
+    CLI_SendString("  Polling comparator output and capturing ADC samples...\r");
+    if (HAL_COMP_Start(&hcomp1) != HAL_OK) {
+      CLI_SendString("  Error: Failed to start comparator.\r");
+    } else {
+      comp_started = 1;
+      CLI_SendString("  Comparator started.\r");
     }
   }else if(strcmp(cmd, "getbuf") == 0){
     // Output ADC buffer contents in console with a single timestamp

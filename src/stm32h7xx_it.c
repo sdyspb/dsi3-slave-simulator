@@ -259,7 +259,7 @@ void COMP_IRQHandler(void)
   HAL_COMP_Stop_IT(&hcomp1);
   
   // Start DMA receive for 128 samples (each sample is 16-bit)
-  if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE * 2) != HAL_OK) {
+  if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
       // Error handling could be added here if needed
       return;
   }
