@@ -1,0 +1,30 @@
+# Docs excludes
+pdf/
+
+# System directories
+.git/
+.pio/
+.vscode/
+
+# Temporary files
+*.map
+*.ld.network
+output.map
+
+# Artefacts PlatformIO
+.pio/build/
+.pio/libdeps/
+
+# Logs
+*.log
+*.tmp
+*.swp
+
+# Bin excludes
+*.bin
+*.hex
+*.elf
+
+# Other
+**/__pycache__/
+**/.cache/

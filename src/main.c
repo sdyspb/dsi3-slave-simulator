@@ -127,12 +127,13 @@ int main(void)
   // Turn OFF heartbeat LED initially (set to HIGH for active-low LED)
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
   
+  // Don't start comparator automatically - wait for explicit CLI command
   // Start comparator after all initializations are complete
-  if(HAL_COMP_Start(&hcomp1) != HAL_OK)
-  {
-      // Error handling - could add error indication if needed
-      CLI_SendString("\r\nError: Comparator start failed.\r\n");
-  }
+  // if(HAL_COMP_Start(&hcomp1) != HAL_OK)
+  // {
+  //     // Error handling - could add error indication if needed
+  //     CLI_SendString("\r\nError: Comparator start failed.\r\n");
+  // }
   
   // Small delay to ensure UART is ready
   HAL_Delay(100);
@@ -147,6 +148,7 @@ int main(void)
   char dbg[64];
   sprintf(dbg, "ADC buffer addr: %p\r\n", adc_buffer);
   CLI_SendRawString(dbg);
+  CLI_SendPrompt();
 
   /* USER CODE END 2 */
 
@@ -378,13 +380,24 @@ void CLI_SendPrompt(void)
   */
 void CLI_PrintHelp(void)
 {
-  CLI_SendString("  Available commands:\r");
-  CLI_SendString("  help          - Show this help message\r");
-  CLI_SendString("  sysinfo       - Display system information\r");
-  CLI_SendString("  heartbeat     - Toggle heartbeat LED (GPIO_PD2)\r");
-  CLI_SendString("  testadc       - Test ADC capture of 128 samples via SPI2 DMA\r");
-  CLI_SendString("  getbuf        - Display ADC buffer contents (sample number - hex value)\r");
-//  CLI_SendString("  <cr>/<lf>     - Show this help message\r");
+  char buffer[100];
+  
+  snprintf(buffer, sizeof(buffer), "\r\nAvailable Commands:\r\n");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  help          - Display this help message\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  sysinfo       - Display system information\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  heartbeat     - Toggle heartbeat LED\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  startcomp     - Start comparator for triggering ADC captures\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  pollcomp      - Poll comparator output level\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  testadc       - Test ADC capture of 128 samples via SPI2 DMA\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  getbuf        - Get ADC buffer contents\r");
+  CLI_SendString(buffer);
 }
 
 /**
@@ -403,11 +416,7 @@ void CLI_PrintSystemInfo(void)
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  Clock: 400 MHz\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  UART Baudrate: 115200\r");
-  CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  CLI Version: 1.0\r");
-  CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  Status: Running\r");
   CLI_SendString(buffer);
 }
 
@@ -433,7 +442,7 @@ void CLI_ProcessCommand(char *cmd)
     }
   }else if(strcmp(cmd, "testadc") == 0){       // Changed from "test_adc_capture" to "testadc"
     // Test ADC capture functionality without COMP trigger
-    CLI_SendString("  Testing ADC capture of 128 samples...\r");   // Updated message to reflect 128 samples
+    CLI_SendString("  Testing ADC capture.\r");   // Updated message to reflect 128 samples
   
 if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
     HAL_SPI_DMAStop(&hspi2);
@@ -451,18 +460,35 @@ if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
         CLI_SendString("  ADC capture test initiated.\r");
     }
   }else if(strcmp(cmd, "pollcomp") == 0){
-    // Poll comparator output and capture ADC samples when COMP output is high
-    CLI_SendString("  Polling comparator output and capturing ADC samples...\r");
-    if (HAL_COMP_Start(&hcomp1) != HAL_OK) {
-      CLI_SendString("  Error: Failed to start comparator.\r");
+    // Poll comparator status
+    HAL_StatusTypeDef status = HAL_COMP_GetOutputLevel(&hcomp1);
+    if(status == HAL_OK) {
+      if(__HAL_COMP_COMP1_EXTI_GET_FLAG() != RESET) {
+        CLI_SendString("  Comparator output: High\r");
+        __HAL_COMP_COMP1_EXTI_CLEAR_FLAG(); // Clear the flag
+      } else {
+        CLI_SendString("  Comparator output: Low\r");
+      }
     } else {
-      comp_started = 1;
-      CLI_SendString("  Comparator started.\r");
+      CLI_SendString("  Comparator not initialized or error occurred\r");
+    }
+  }else if(strcmp(cmd, "startcomp") == 0){
+    // Start comparator
+    if(HAL_COMP_Start(&hcomp1) != HAL_OK)
+    {
+        CLI_SendString("  Error: Comparator start failed.\r");
+    }else{
+        CLI_SendString("  Comparator started successfully.\r");
+        comp_started = 1; // Set the flag to indicate comparator has been started
     }
   }else if(strcmp(cmd, "getbuf") == 0){
     // Output ADC buffer contents in console with a single timestamp
     CLI_SendString("\r\n  ADC Buffer Contents:\r\n");
     
+if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
+    HAL_SPI_DMAStop(&hspi2);
+    CLI_SendString("  Clearing ADC busy RX\r");
+}    
     // Send buffer contents with only one timestamp
     char buffer[256]; // Buffer to hold multiple entries
     int pos = 0;

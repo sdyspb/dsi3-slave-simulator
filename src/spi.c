@@ -59,6 +59,8 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
     // Turn off red LED (GPIO_PD3) to indicate end of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
 
+    SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
+    
     // Re-enable comparator interrupt to allow next trigger event
     if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK)
     {
@@ -161,6 +163,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
 
     /* SPI2 DMA Init */
     /* SPI2_RX Init */
+    /*
     hdma_spi2_rx.Instance = DMA1_Stream0;
     hdma_spi2_rx.Init.Request = DMA_REQUEST_SPI2_RX;
     hdma_spi2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
@@ -174,7 +177,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     hdma_spi2_rx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
     hdma_spi2_rx.Init.MemBurst = DMA_MBURST_SINGLE;
     hdma_spi2_rx.Init.PeriphBurst = DMA_PBURST_SINGLE;
-    /*
+    */
     hdma_spi2_rx.Instance = DMA1_Stream0;
     hdma_spi2_rx.Init.Request = DMA_REQUEST_SPI2_RX;
     hdma_spi2_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
@@ -185,7 +188,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef* spiHandle)
     hdma_spi2_rx.Init.Mode = DMA_NORMAL;
     hdma_spi2_rx.Init.Priority = DMA_PRIORITY_VERY_HIGH;
     hdma_spi2_rx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
-    */
+    
     if (HAL_DMA_Init(&hdma_spi2_rx) != HAL_OK)
     {
       Error_Handler();
