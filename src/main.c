@@ -435,8 +435,6 @@ void CLI_PrintHelp(void)
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  startcomp     - Start comparator for triggering ADC captures\r");
   CLI_SendString(buffer);
-  snprintf(buffer, sizeof(buffer), "  pollcomp      - Poll comparator output level\r");
-  CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  testadc       - Test ADC capture of 128 samples via SPI2 DMA\r");
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  getbuf        - Get ADC buffer contents\r");
@@ -499,19 +497,6 @@ void CLI_ProcessCommand(char *cmd)
         CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");
     } else {
         CLI_SendString("  ADC capture test initiated.\r");
-    }
-  }else if(strcmp(cmd, "pollcomp") == 0){
-    // Poll comparator status
-    HAL_StatusTypeDef status = HAL_COMP_GetOutputLevel(&hcomp1);
-    if(status == HAL_OK) {
-      if(__HAL_COMP_COMP1_EXTI_GET_FLAG() != RESET) {
-        CLI_SendString("  Comparator output: High\r");
-        __HAL_COMP_COMP1_EXTI_CLEAR_FLAG(); // Clear the flag
-      } else {
-        CLI_SendString("  Comparator output: Low\r");
-      }
-    } else {
-      CLI_SendString("  Comparator not initialized or error occurred\r");
     }
   }else if(strcmp(cmd, "startcomp") == 0){
     // Start comparator
