@@ -116,8 +116,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();   // Insert DMA initialization here
-  MX_SPI2_Init();  // Call SPI2 initialization
+  MX_DMA_Init();   // Insert DMA initialization here. It should be done before ADC initialization to ensure DMA is ready for ADC operations
+  MX_SPI2_Init();  // Call SPI2 initialization. It should be done after DMA initialization since SPI2 uses DMA for ADC data reception
   MX_USART1_UART_Init();  // Then USART1
 //  MX_COMP1_Init(); // Initialize comparator
   MX_TIM2_Init();  // Initialize TIM2 for high precision timing
