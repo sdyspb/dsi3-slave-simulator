@@ -66,6 +66,9 @@ uint8_t heartbeat_enabled = 1;
 
 uint16_t adc_buffer[ADC_BUFFER_SIZE] __attribute__((section(".dma_buffer"), aligned(32))); // Buffer to store ADC samples in DMA-accessible memory
 uint8_t comp_started = 0; // Flag to track if comparator has been started
+uint8_t spi_rx_complete_flag = 0; // Flag set in HAL_SPI_RxCpltCallback to indicate completion
+uint32_t led_turn_on_time = 0; // Time when LED was turned on
+uint8_t red_led_state = 0; // Current state of the red LED (0 = off, 1 = on)
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -209,6 +212,22 @@ int main(void)
     }
 
     /* USER CODE BEGIN 3 */
+    
+    // Handle red LED control based on SPI Rx completion
+    if (spi_rx_complete_flag) {
+        // Turn on red LED (GPIO_PD3) when SPI reception completes
+        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
+        red_led_state = 1;
+        led_turn_on_time = HAL_GetTick(); // Record when LED was turned on
+        spi_rx_complete_flag = 0; // Reset the flag immediately
+    }
+    
+    // Check if 200ms have passed since turning on the LED, then turn it off
+    if (red_led_state && (HAL_GetTick() - led_turn_on_time >= 200)) {
+        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Turn off the LED
+        red_led_state = 0;
+    }
+    
   }
   /* USER CODE END 3 */
 }
@@ -461,16 +480,12 @@ void CLI_ProcessCommand(char *cmd)
         HAL_SPI_DMAStop(&hspi2);
         CLI_SendString("  Clearing ADC busy RX\r");
     }    
-    // Turn on red LED (GPIO_PD3) to indicate start of capture
-    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
-    
+   
     // SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
 
     // Start DMA receive for ADC_BUFFER_SIZE bytes (each sample is 16-bit)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
         CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");
-        // Turn off red LED in case of error
-        HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET);
     } else {
         CLI_SendString("  ADC capture test initiated.\r");
     }

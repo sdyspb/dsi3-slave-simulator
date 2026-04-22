@@ -56,10 +56,12 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 {
   if(hspi->Instance == SPI2)
   {
-    // Turn off red LED (GPIO_PD3) to indicate end of capture
-    HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Active-high, so SET = OFF
+    // Set flag to indicate SPI reception is complete
+    // LED control will be handled in the main loop
+    extern uint8_t spi_rx_complete_flag;
+    spi_rx_complete_flag = 1;
 
-//    SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
+    // SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
     
     // Re-enable comparator interrupt to allow next trigger event
     if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK)
