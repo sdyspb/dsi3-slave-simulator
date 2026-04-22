@@ -457,14 +457,14 @@ void CLI_ProcessCommand(char *cmd)
     // Test ADC capture functionality without COMP trigger
     CLI_SendString("  Testing ADC capture.\r");   // Updated message to reflect 128 samples
   
-if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
-    HAL_SPI_DMAStop(&hspi2);
-    CLI_SendString("  Clearing ADC busy RX\r");
-}    
+    if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
+        HAL_SPI_DMAStop(&hspi2);
+        CLI_SendString("  Clearing ADC busy RX\r");
+    }    
     // Turn on red LED (GPIO_PD3) to indicate start of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
     
-// SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
+    // SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
 
     // Start DMA receive for ADC_BUFFER_SIZE bytes (each sample is 16-bit)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
@@ -500,10 +500,10 @@ if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
     // Output ADC buffer contents in console with a single timestamp
     CLI_SendString("\r\n  ADC Buffer Contents:\r\n");
     
-if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
-    HAL_SPI_DMAStop(&hspi2);
-    CLI_SendString("  Clearing ADC busy RX\r");
-}    
+    if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
+        HAL_SPI_DMAStop(&hspi2);
+        CLI_SendString("  Clearing ADC busy RX\r");
+    }    
     // Send buffer contents with only one timestamp
     char buffer[256]; // Buffer to hold multiple entries
     int pos = 0;
