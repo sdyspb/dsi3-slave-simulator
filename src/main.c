@@ -160,9 +160,9 @@ int main(void)
   CLI_SendPrompt();
 
   if ((uint32_t)adc_buffer % 32 != 0) {
-    CLI_SendString("Error: adc_buffer is not 32-byte aligned!\r\n");
+    CLI_SendString("Error: adc_buffer is not 32-byte aligned!\r");
   } else {
-    CLI_SendString("OK: adc_buffer is 32-byte aligned.\r\n");
+    CLI_SendString("OK: adc_buffer is 32-byte aligned.\r");
   }
   CLI_SendPrompt();
 
@@ -515,12 +515,28 @@ void CLI_ProcessCommand(char *cmd)
     }
   }else if(strcmp(cmd, "startcomp") == 0){
     // Start comparator
-    if(HAL_COMP_Start(&hcomp1) != HAL_OK)
-    {
-        CLI_SendString("  Error: Comparator start failed.\r");
-    }else{
-        CLI_SendString("  Comparator started successfully.\r");
-        comp_started = 1; // Set the flag to indicate comparator has been started
+    // Check if comparator is already enabled by checking the EN bit in CFGR register
+    if (HAL_IS_BIT_SET(COMP1->CFGR, COMP_CFGRx_EN)) {
+        // Check if it's already running in interrupt mode
+        if(hcomp1.State == HAL_COMP_STATE_BUSY) {
+            CLI_SendString("  Comparator is already running in interrupt mode.\r");
+        } else {
+            // Not busy but still enabled, try to start interrupt mode
+            if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK) {
+                CLI_SendString("  Error: Comparator interrupt start failed.\r");
+            } else {
+                CLI_SendString("  Comparator interrupt started successfully.\r");
+                comp_started = 1; // Set the flag to indicate comparator has been started
+            }
+        }
+    } else {
+        // Start comparator normally
+        if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK) {
+            CLI_SendString("  Error: Comparator start failed.\r");
+        } else {
+            CLI_SendString("  Comparator started successfully.\r");
+            comp_started = 1; // Set the flag to indicate comparator has been started
+        }
     }
   }else if(strcmp(cmd, "getbuf") == 0){
     // Output ADC buffer contents in console with a single timestamp
