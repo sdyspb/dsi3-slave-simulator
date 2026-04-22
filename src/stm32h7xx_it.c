@@ -256,13 +256,12 @@ void COMP_IRQHandler(void)
   /* USER CODE BEGIN COMP_IRQn 0 */
   
   // Disable further interrupts from comparator to prevent re-triggering during data acquisition
-  HAL_COMP_Stop_IT(&hcomp1);
+  // HAL_COMP_Stop_IT(&hcomp1);
   
-  // Start DMA receive for 128 samples (each sample is 16-bit)
-  if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
-      // Error handling could be added here if needed
-      return;
-  }
+  // Set flag to indicate comparator was triggered
+  // SPI DMA transfer will be started in main loop
+  extern uint8_t comparator_triggered_flag;
+  comparator_triggered_flag = 1;
   
   /* USER CODE END COMP_IRQn 0 */
 

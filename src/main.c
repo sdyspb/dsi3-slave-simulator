@@ -69,6 +69,7 @@ uint8_t comp_started = 0; // Flag to track if comparator has been started
 uint8_t spi_rx_complete_flag = 0; // Flag set in HAL_SPI_RxCpltCallback to indicate completion
 uint32_t led_turn_on_time = 0; // Time when LED was turned on
 uint8_t red_led_state = 0; // Current state of the red LED (0 = off, 1 = on)
+uint8_t comparator_triggered_flag = 0; // Flag set in comparator interrupt to indicate trigger
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -122,7 +123,7 @@ int main(void)
   MX_DMA_Init();   // Insert DMA initialization here. It should be done before ADC initialization to ensure DMA is ready for ADC operations
   MX_SPI2_Init();  // Call SPI2 initialization. It should be done after DMA initialization since SPI2 uses DMA for ADC data reception
   MX_USART1_UART_Init();  // Then USART1
-//  MX_COMP1_Init(); // Initialize comparator
+  MX_COMP1_Init(); // Initialize comparator
   MX_TIM2_Init();  // Initialize TIM2 for high precision timing
   
   /* USER CODE BEGIN 2 */
@@ -154,16 +155,15 @@ int main(void)
   CLI_SendPrompt();
 
   char dbg[64];
-  sprintf(dbg, "ADC buffer addr: %p\r\n", adc_buffer);
-  CLI_SendRawString(dbg);
+  sprintf(dbg, "ADC buffer addr: %p\r", adc_buffer);
+  CLI_SendString(dbg);
   CLI_SendPrompt();
 
   if ((uint32_t)adc_buffer % 32 != 0) {
-    // Если условие выполняется, буфер НЕ выровнен. Примите меры.
     CLI_SendString("Error: adc_buffer is not 32-byte aligned!\r\n");
-} else {
+  } else {
     CLI_SendString("OK: adc_buffer is 32-byte aligned.\r\n");
-}
+  }
   CLI_SendPrompt();
 
   /* USER CODE END 2 */
@@ -226,6 +226,17 @@ int main(void)
     if (red_led_state && (HAL_GetTick() - led_turn_on_time >= 200)) {
         HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_SET); // Turn off the LED
         red_led_state = 0;
+    }
+    
+    // Check if comparator was triggered and start SPI DMA if needed
+    if (comparator_triggered_flag) {
+        comparator_triggered_flag = 0; // Reset the flag immediately
+        
+        // Start DMA receive for ADC_BUFFER_SIZE samples (each sample is 16-bit)
+        if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
+            // Error handling could be added here if needed
+            // For now, we just continue
+        }
     }
     
   }

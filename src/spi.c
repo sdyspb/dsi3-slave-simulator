@@ -63,12 +63,13 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 
     // SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
     
-    // Re-enable comparator interrupt to allow next trigger event
+/*    // Re-enable comparator interrupt to allow next trigger event
     if(HAL_COMP_Start_IT(&hcomp1) != HAL_OK)
     {
         // Error handling if needed
     }
-  }
+*/  
+    }
 }
 /* USER CODE BEGIN 1 */
 
