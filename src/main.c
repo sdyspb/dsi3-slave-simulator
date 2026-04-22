@@ -116,13 +116,18 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI2_Init();  // Call SPI2 initialization
   MX_DMA_Init();   // Insert DMA initialization here
+  MX_SPI2_Init();  // Call SPI2 initialization
   MX_USART1_UART_Init();  // Then USART1
 //  MX_COMP1_Init(); // Initialize comparator
   MX_TIM2_Init();  // Initialize TIM2 for high precision timing
   
   /* USER CODE BEGIN 2 */
+  
+  // Initialize adc_buffer with ascending values starting from zero
+  for(int i = 0; i < ADC_BUFFER_SIZE; i++) {
+      adc_buffer[i] = 0xDEAD; // Fill with a known pattern for testing
+  }
   
   // Turn OFF heartbeat LED initially (set to HIGH for active-low LED)
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_2, GPIO_PIN_SET);
@@ -148,6 +153,14 @@ int main(void)
   char dbg[64];
   sprintf(dbg, "ADC buffer addr: %p\r\n", adc_buffer);
   CLI_SendRawString(dbg);
+  CLI_SendPrompt();
+
+  if ((uint32_t)adc_buffer % 32 != 0) {
+    // Если условие выполняется, буфер НЕ выровнен. Примите меры.
+    CLI_SendString("Error: adc_buffer is not 32-byte aligned!\r\n");
+} else {
+    CLI_SendString("OK: adc_buffer is 32-byte aligned.\r\n");
+}
   CLI_SendPrompt();
 
   /* USER CODE END 2 */
@@ -451,6 +464,8 @@ if (hspi2.State == HAL_SPI_STATE_BUSY_RX) {
     // Turn on red LED (GPIO_PD3) to indicate start of capture
     HAL_GPIO_WritePin(GPIOD, RED_LED_Pin, GPIO_PIN_RESET); // Active-low, so RESET = ON
     
+// SCB_InvalidateDCache_by_Addr((uint32_t*)adc_buffer, ADC_BUFFER_SIZE * sizeof(uint16_t));
+
     // Start DMA receive for ADC_BUFFER_SIZE bytes (each sample is 16-bit)
     if (HAL_SPI_Receive_DMA(&hspi2, (uint8_t*)adc_buffer, ADC_BUFFER_SIZE) != HAL_OK) {
         CLI_SendString("  Error: Failed to start ADC capture via DMA.\r");

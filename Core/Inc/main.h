@@ -78,7 +78,7 @@ void CLI_SendRawString(char *str);  // New function for sending raw strings with
 #define RED_LED_Pin GPIO_PIN_3
 #define RED_LED_GPIO_Port GPIOD
 
-#define ADC_BUFFER_SIZE 6  //128     // Number of ADC samples to capture (changed from 100 to 128)
+#define ADC_BUFFER_SIZE 128     // Number of ADC samples to capture (changed from 100 to 128)
 
 /* USER CODE BEGIN Private defines */
 
