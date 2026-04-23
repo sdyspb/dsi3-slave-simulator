@@ -8,7 +8,7 @@
  * @param chip3: Pointer to store the third chip value (0, 1, or 2)
  * @retval None
  */
-void Ethernet_EncodeData(uint8_t data, uint8_t *chip1, uint8_t *chip2, uint8_t *chip3)
+void Response_EncodeData(uint8_t data, uint8_t *chip1, uint8_t *chip2, uint8_t *chip3)
 {
     // Lookup table based on the provided encoding table
     static const uint8_t lookup_table[16][3] = {
