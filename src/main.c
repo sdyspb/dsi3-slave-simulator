@@ -28,6 +28,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "stdarg.h"
+#include "encoding.h" // Added for response encoding
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -48,6 +49,10 @@ extern SPI_HandleTypeDef hspi2;
 /* USER CODE BEGIN PD */
 #define CLI_BUFFER_SIZE 128
 #define HEARTBEAT_INTERVAL 500  // ms
+#define CHIP_DURATION_US 6.35f  // Duration of one chip in microseconds
+#define SYMBOL_DURATION_US (CHIP_DURATION_US * 3)  // Duration of one symbol (3 chips) in microseconds
+#define MIN_CHIP_DURATION_US 2.7f  // Minimum chip duration in microseconds
+#define MAX_CHIP_DURATION_US 10.0f // Maximum chip duration in microseconds
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -81,6 +86,10 @@ void CLI_SendString(char *str);
 void CLI_PrintHelp(void);
 void CLI_PrintSystemInfo(void);
 void CLI_SendPrompt(void);
+void Response_SetValue(uint8_t value);
+void Response_SetChipValue(uint8_t chip_num, uint8_t value);
+void Response_Timer_Init(void);
+void CLI_TestResp(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -125,6 +134,7 @@ int main(void)
   MX_USART1_UART_Init();  // Then USART1
   MX_COMP1_Init(); // Initialize comparator
   MX_TIM2_Init();  // Initialize TIM2 for high precision timing
+  Response_Timer_Init(); // Initialize response timer
   
   /* USER CODE BEGIN 2 */
   
@@ -303,8 +313,6 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
-/* USER CODE END 4 */
-
 /* MPU Configuration */
 void MPU_Config(void)
 {
@@ -335,6 +343,102 @@ void MPU_Config(void)
 }
 
 /**
+  * @brief  Send test response for BADC0DB4 symbol
+  * @param  None
+  * @retval None
+  */
+void CLI_TestResp(void)
+{
+  CLI_SendString("Starting test response transmission...\r\n");
+  
+  // Symbol to transmit: BADC0DB4
+  // Breaking down into hex digits: B A D C 0 D B 4
+  uint8_t test_symbols[] = {0xB, 0xA, 0xD, 0xC, 0x0, 0xD, 0xB, 0x4};
+  
+  // Transmit 8 three-chip symbols without pauses
+  for(int i = 0; i < 8; i++)
+  {
+    uint8_t value = test_symbols[i];
+    CLI_SendString("Transmitting symbol: ");
+    
+    // Print the hex digit being transmitted
+    char hex_char[2] = {0};
+    if(value < 10) {
+      hex_char[0] = '0' + value;
+    } else {
+      hex_char[0] = 'A' + (value - 10);
+    }
+    
+    char msg[20];
+    snprintf(msg, sizeof(msg), "%c\r\n", hex_char[0]);
+    CLI_SendString(msg);
+    
+    // Directly set the pins according to the encoded value without delays between chips
+    uint8_t chip1, chip2, chip3;
+    Response_EncodeData(value, &chip1, &chip2, &chip3);
+    
+    // Set first chip
+    Response_SetChipValue(1, chip1);
+    
+    // Small delay equivalent to chip duration (6.35us) using timer
+    uint32_t start_tick = __HAL_TIM_GET_COUNTER(&htim1);
+    uint32_t elapsed = 0;
+    if(htim1.Instance->CNT >= start_tick) {
+        elapsed = htim1.Instance->CNT - start_tick;
+    } else {
+        elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+    }
+    while(elapsed <= htim1.Init.Period) {
+        if(htim1.Instance->CNT >= start_tick) {
+            elapsed = htim1.Instance->CNT - start_tick;
+        } else {
+            elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+        }
+    }
+
+    // Set second chip
+    Response_SetChipValue(2, chip2);
+    
+    // Small delay equivalent to chip duration (6.35us) using timer
+    start_tick = __HAL_TIM_GET_COUNTER(&htim1);
+    elapsed = 0;
+    if(htim1.Instance->CNT >= start_tick) {
+        elapsed = htim1.Instance->CNT - start_tick;
+    } else {
+        elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+    }
+    while(elapsed <= htim1.Init.Period) {
+        if(htim1.Instance->CNT >= start_tick) {
+            elapsed = htim1.Instance->CNT - start_tick;
+        } else {
+            elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+        }
+    }
+
+    // Set third chip
+    Response_SetChipValue(3, chip3);
+    
+    // Small delay equivalent to chip duration (6.35us) using timer
+    start_tick = __HAL_TIM_GET_COUNTER(&htim1);
+    elapsed = 0;
+    if(htim1.Instance->CNT >= start_tick) {
+        elapsed = htim1.Instance->CNT - start_tick;
+    } else {
+        elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+    }
+    while(elapsed <= htim1.Init.Period) {
+        if(htim1.Instance->CNT >= start_tick) {
+            elapsed = htim1.Instance->CNT - start_tick;
+        } else {
+            elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+        }
+    }
+  }
+  
+  CLI_SendString("Test response transmission completed.\r\n");
+}
+
+/**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
@@ -352,7 +456,153 @@ void Error_Handler(void)
   /* USER CODE END Error_Handler_Debug */
 }
 
-/* USER CODE BEGIN 4 */
+/**
+ * @brief  Initialize TIM1 for response signal generation
+ * @retval None
+ */
+void Response_Timer_Init(void)
+{
+  // Calculate the timer clock frequency (typically APB2 frequency)
+  // According to project information memory: TIM1 connects to APB2 bus
+  // We need to get the actual clock frequency during runtime
+  uint32_t timer_clock_freq = HAL_RCC_GetPCLK2Freq();
+  
+  // Calculate the timer period for 6.35us duration
+  // Period = (timer_clock_freq / 1000000) * 6.35
+  uint32_t timer_period = (uint32_t)(((float)timer_clock_freq / 1000000.0f) * 6.35f);
+  
+  // Configure timer period for 6.35us
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 0;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = timer_period - 1; // Subtract 1 because counter counts from 0
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  
+  // Configure channels for PE9 (RESP_12MA) and PE11 (RESP_24MA)
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = timer_period / 2; // 50% duty cycle initially
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+ * @brief  Sets the response value by encoding it and setting the chip values
+ * @param  value: 4-bit value to encode and transmit (0-15)
+ * @retval None
+ */
+void Response_SetValue(uint8_t value)
+{
+  uint8_t chip1, chip2, chip3;
+  
+  // Encode the 4-bit value into three chip symbols
+  Response_EncodeData(value, &chip1, &chip2, &chip3);
+  
+  // Set each chip value with appropriate timing
+  Response_SetChipValue(1, chip1);
+  
+  // Precise delay for chip duration (6.35us) using timer for precision
+  uint32_t start_tick = __HAL_TIM_GET_COUNTER(&htim1);
+  uint32_t elapsed = 0;
+  // Account for potential timer overflow (HAL timer counter is 16-bit)
+  if(htim1.Instance->CNT >= start_tick) {
+      elapsed = htim1.Instance->CNT - start_tick;
+  } else {
+      elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+  }
+  // Wait until at least the timer period has passed
+  while(elapsed <= htim1.Init.Period) {
+      if(htim1.Instance->CNT >= start_tick) {
+          elapsed = htim1.Instance->CNT - start_tick;
+      } else {
+          elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+      }
+  }
+  
+  Response_SetChipValue(2, chip2);
+  
+  // Precise delay for chip duration (6.35us) using timer for precision
+  start_tick = __HAL_TIM_GET_COUNTER(&htim1);
+  elapsed = 0;
+  if(htim1.Instance->CNT >= start_tick) {
+      elapsed = htim1.Instance->CNT - start_tick;
+  } else {
+      elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+  }
+  while(elapsed <= htim1.Init.Period) {
+      if(htim1.Instance->CNT >= start_tick) {
+          elapsed = htim1.Instance->CNT - start_tick;
+      } else {
+          elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+      }
+  }
+  
+  Response_SetChipValue(3, chip3);
+  
+  // Precise delay for chip duration (6.35us) using timer for precision
+  start_tick = __HAL_TIM_GET_COUNTER(&htim1);
+  elapsed = 0;
+  if(htim1.Instance->CNT >= start_tick) {
+      elapsed = htim1.Instance->CNT - start_tick;
+  } else {
+      elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+  }
+  while(elapsed <= htim1.Init.Period) {
+      if(htim1.Instance->CNT >= start_tick) {
+          elapsed = htim1.Instance->CNT - start_tick;
+      } else {
+          elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
+      }
+  }
+}
+
+/**
+ * @brief  Sets the value of a specific chip (0, 1, or 2)
+ * @param  chip_num: Chip number (1, 2, or 3)
+ * @param  value: Chip value (0, 1, or 2)
+ * @retval None
+ */
+void Response_SetChipValue(uint8_t chip_num, uint8_t value)
+{
+  switch(value) {
+    case 0: // Both pins LOW
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_9, GPIO_PIN_RESET);  // RESP_12MA LOW
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_RESET); // RESP_24MA LOW
+      break;
+    case 1: // RESP_12MA HIGH, RESP_24MA LOW
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_9, GPIO_PIN_SET);    // RESP_12MA HIGH
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_RESET); // RESP_24MA LOW
+      break;
+    case 2: // RESP_12MA LOW, RESP_24MA HIGH
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_9, GPIO_PIN_RESET);  // RESP_12MA LOW
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_SET);   // RESP_24MA HIGH
+      break;
+    default:
+      // Invalid value, set both to LOW
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_9, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_RESET);
+      break;
+  }
+}
 
 /**
   * @brief  This function provides delay in milliseconds
@@ -438,6 +688,8 @@ void CLI_PrintHelp(void)
   snprintf(buffer, sizeof(buffer), "  testadc       - Test ADC capture of 128 samples via SPI2 DMA\r");
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  getbuf        - Get ADC buffer contents\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  testresp      - Send test response for BADC0DB4 symbol\r");
   CLI_SendString(buffer);
 }
 
@@ -556,6 +808,8 @@ void CLI_ProcessCommand(char *cmd)
     }
     
     CLI_SendString("  Buffer dump complete.\r");
+  }else if(strcmp(cmd, "testresp") == 0){
+    CLI_TestResp();
   }else{
     CLI_SendString("  Unknown command. Type 'help' for available commands.\r");
   }
