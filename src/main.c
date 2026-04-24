@@ -1,21 +1,22 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2024 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
+
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "gpio.h"  // Added GPIO header
@@ -57,6 +58,21 @@ extern SPI_HandleTypeDef hspi2;
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
+SPI_HandleTypeDef hspi2;
+TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim2;
+
+// Variables for response transmission
+volatile uint8_t response_active = 0;           // Flag indicating if response transmission is active
+volatile uint8_t response_chips[3];             // Array to store the 3 chips of the response
+volatile uint8_t current_chip_index = 0;        // Index of current chip being transmitted
+volatile uint8_t current_chip_position = 0;     // Position within the current chip (0-2)
+/* USER CODE END PV */
 
 /* USER CODE END PM */
 
@@ -343,7 +359,7 @@ void MPU_Config(void)
 }
 
 /**
-  * @brief  Send test response for BADC0DB4 symbol
+  * @brief  Send test response for BADC0DB4 symbol without pauses between symbols
   * @param  None
   * @retval None
   */
@@ -355,83 +371,33 @@ void CLI_TestResp(void)
   // Breaking down into hex digits: B A D C 0 D B 4
   uint8_t test_symbols[] = {0xB, 0xA, 0xD, 0xC, 0x0, 0xD, 0xB, 0x4};
   
-  // Transmit 8 three-chip symbols without pauses
+  CLI_SendString("Transmitting symbols: ");
+  
+  // Print all hex digits being transmitted at once
   for(int i = 0; i < 8; i++)
   {
     uint8_t value = test_symbols[i];
-    CLI_SendString("Transmitting symbol: ");
-    
-    // Print the hex digit being transmitted
     char hex_char[2] = {0};
     if(value < 10) {
       hex_char[0] = '0' + value;
     } else {
       hex_char[0] = 'A' + (value - 10);
     }
+    CLI_SendString(hex_char);
+  }
+  CLI_SendString("\r\n");
+  
+  // Transmit 8 three-chip symbols without pauses between transmissions
+  for(int i = 0; i < 8; i++)
+  {
+    uint8_t value = test_symbols[i];
     
-    char msg[20];
-    snprintf(msg, sizeof(msg), "%c\r\n", hex_char[0]);
-    CLI_SendString(msg);
+    // Transmit the symbol using timer
+    Response_SetValue(value);
     
-    // Directly set the pins according to the encoded value without delays between chips
-    uint8_t chip1, chip2, chip3;
-    Response_EncodeData(value, &chip1, &chip2, &chip3);
-    
-    // Set first chip
-    Response_SetChipValue(1, chip1);
-    
-    // Small delay equivalent to chip duration (6.35us) using timer
-    uint32_t start_tick = __HAL_TIM_GET_COUNTER(&htim1);
-    uint32_t elapsed = 0;
-    if(htim1.Instance->CNT >= start_tick) {
-        elapsed = htim1.Instance->CNT - start_tick;
-    } else {
-        elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-    }
-    while(elapsed <= htim1.Init.Period) {
-        if(htim1.Instance->CNT >= start_tick) {
-            elapsed = htim1.Instance->CNT - start_tick;
-        } else {
-            elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-        }
-    }
-
-    // Set second chip
-    Response_SetChipValue(2, chip2);
-    
-    // Small delay equivalent to chip duration (6.35us) using timer
-    start_tick = __HAL_TIM_GET_COUNTER(&htim1);
-    elapsed = 0;
-    if(htim1.Instance->CNT >= start_tick) {
-        elapsed = htim1.Instance->CNT - start_tick;
-    } else {
-        elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-    }
-    while(elapsed <= htim1.Init.Period) {
-        if(htim1.Instance->CNT >= start_tick) {
-            elapsed = htim1.Instance->CNT - start_tick;
-        } else {
-            elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-        }
-    }
-
-    // Set third chip
-    Response_SetChipValue(3, chip3);
-    
-    // Small delay equivalent to chip duration (6.35us) using timer
-    start_tick = __HAL_TIM_GET_COUNTER(&htim1);
-    elapsed = 0;
-    if(htim1.Instance->CNT >= start_tick) {
-        elapsed = htim1.Instance->CNT - start_tick;
-    } else {
-        elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-    }
-    while(elapsed <= htim1.Init.Period) {
-        if(htim1.Instance->CNT >= start_tick) {
-            elapsed = htim1.Instance->CNT - start_tick;
-        } else {
-            elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-        }
+    // Wait for transmission to complete before sending next symbol
+    while(response_active) {
+      // Wait for response to complete
     }
   }
   
@@ -480,28 +446,46 @@ void Response_Timer_Init(void)
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)  // Change to base timer init instead of PWM
   {
     Error_Handler();
   }
   
-  // Configure channels for PE9 (RESP_12MA) and PE11 (RESP_24MA)
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = timer_period / 2; // 50% duty cycle initially
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  // Configure timer interrupt
+  HAL_NVIC_SetPriority(TIM1_UP_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(TIM1_UP_IRQn);
+  
+}
 
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
+/**
+ * @brief  Handle TIM1 Update event (timer overflow)
+ * @retval None
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM1) {
+    if(response_active) {
+      // Move to next chip position
+      current_chip_position++;
+      
+      if(current_chip_position >= 3) {  // Each chip lasts for 3 timer periods (actual chip + 2 additional periods)
+        current_chip_position = 0;
+        current_chip_index++;
+        
+        if(current_chip_index >= 3) {  // All 3 chips transmitted
+          // Stop timer and deactivate response
+          HAL_TIM_Base_Stop_IT(&htim1);
+          response_active = 0; // Сбросим флаг после завершения передачи
+          return;
+        }
+      }
+      
+      // Update GPIO outputs based on next chip value (if moving to next chip)
+      if(current_chip_position == 0) { // Just finished a chip, move to next
+        uint8_t chip_value = response_chips[current_chip_index];
+        Response_SetChipValue(1, chip_value);  // We only care about setting the value, not the chip number
+      }
+    }
   }
 }
 
@@ -512,67 +496,23 @@ void Response_Timer_Init(void)
  */
 void Response_SetValue(uint8_t value)
 {
-  uint8_t chip1, chip2, chip3;
-  
-  // Encode the 4-bit value into three chip symbols
-  Response_EncodeData(value, &chip1, &chip2, &chip3);
-  
-  // Set each chip value with appropriate timing
-  Response_SetChipValue(1, chip1);
-  
-  // Precise delay for chip duration (6.35us) using timer for precision
-  uint32_t start_tick = __HAL_TIM_GET_COUNTER(&htim1);
-  uint32_t elapsed = 0;
-  // Account for potential timer overflow (HAL timer counter is 16-bit)
-  if(htim1.Instance->CNT >= start_tick) {
-      elapsed = htim1.Instance->CNT - start_tick;
-  } else {
-      elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-  }
-  // Wait until at least the timer period has passed
-  while(elapsed <= htim1.Init.Period) {
-      if(htim1.Instance->CNT >= start_tick) {
-          elapsed = htim1.Instance->CNT - start_tick;
-      } else {
-          elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-      }
-  }
-  
-  Response_SetChipValue(2, chip2);
-  
-  // Precise delay for chip duration (6.35us) using timer for precision
-  start_tick = __HAL_TIM_GET_COUNTER(&htim1);
-  elapsed = 0;
-  if(htim1.Instance->CNT >= start_tick) {
-      elapsed = htim1.Instance->CNT - start_tick;
-  } else {
-      elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-  }
-  while(elapsed <= htim1.Init.Period) {
-      if(htim1.Instance->CNT >= start_tick) {
-          elapsed = htim1.Instance->CNT - start_tick;
-      } else {
-          elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-      }
-  }
-  
-  Response_SetChipValue(3, chip3);
-  
-  // Precise delay for chip duration (6.35us) using timer for precision
-  start_tick = __HAL_TIM_GET_COUNTER(&htim1);
-  elapsed = 0;
-  if(htim1.Instance->CNT >= start_tick) {
-      elapsed = htim1.Instance->CNT - start_tick;
-  } else {
-      elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-  }
-  while(elapsed <= htim1.Init.Period) {
-      if(htim1.Instance->CNT >= start_tick) {
-          elapsed = htim1.Instance->CNT - start_tick;
-      } else {
-          elapsed = (0xFFFF - start_tick) + htim1.Instance->CNT;
-      }
-  }
+    // Encode the 4-bit value into three chip symbols
+    Response_EncodeData(value, &response_chips[0], &response_chips[1], &response_chips[2]);
+    
+    // Initialize transmission variables
+    current_chip_index = 0;
+    current_chip_position = 0;
+    response_active = 1; // Убедимся, что флаг установлен
+    
+    // Set initial chip value
+    uint8_t chip_value = response_chips[0];
+    Response_SetChipValue(1, chip_value);  // Set first chip value immediately
+    
+    // Start timer to begin transmission
+    if (HAL_TIM_Base_Start_IT(&htim1) != HAL_OK)
+    {
+        Error_Handler();
+    }
 }
 
 /**
@@ -815,6 +755,14 @@ void CLI_ProcessCommand(char *cmd)
   }
 }
 /* USER CODE END 4 */
+
+/**
+  * @brief  This function handles TIM1 update interrupt.
+  */
+void TIM1_UP_IRQHandler(void)
+{
+  HAL_TIM_IRQHandler(&htim1);
+}
 
 #ifdef USE_FULL_ASSERT
 /**

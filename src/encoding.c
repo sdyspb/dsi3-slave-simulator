@@ -1,17 +1,11 @@
 #include "encoding.h"
 
-/**
- * @brief Encode 4-bit data into three chip symbols (0, 1, 2) based on the provided mapping table.
- * @param data: 4-bit encoded data (0x0 to 0xF)
- * @param chip1: Pointer to store the first chip value (0, 1, or 2)
- * @param chip2: Pointer to store the second chip value (0, 1, or 2)
- * @param chip3: Pointer to store the third chip value (0, 1, or 2)
- * @retval None
- */
-void Response_EncodeData(uint8_t data, uint8_t *chip1, uint8_t *chip2, uint8_t *chip3)
+void Response_EncodeData(uint8_t data, volatile uint8_t *chip1, volatile uint8_t *chip2, volatile uint8_t *chip3)
 {
-    // Lookup table based on the provided encoding table
-    static const uint8_t lookup_table[16][3] = {
+    // Define the encoding table for 4-bit data to 3-symbol response
+    // Each symbol can have values 0, 1, or 2
+    // Table format: for each data value (0-15), define the three corresponding chip values
+    static const uint8_t encoding_table[16][3] = {
         {1, 1, 0},  // 0000 -> 0
         {2, 1, 1},  // 0001 -> 1
         {1, 0, 2},  // 0010 -> 2
@@ -30,12 +24,13 @@ void Response_EncodeData(uint8_t data, uint8_t *chip1, uint8_t *chip2, uint8_t *
         {1, 2, 1}   // 1111 -> F
     };
 
-    if (data >= 16) {
-        // Invalid input - clamp to valid range
-        data = 0;
+    // Ensure data is within valid range
+    if (data > 15) {
+        data = 0; // Default to first entry if invalid
     }
 
-    *chip1 = lookup_table[data][0];
-    *chip2 = lookup_table[data][1];
-    *chip3 = lookup_table[data][2];
+    // Get the encoded values from the table
+    *chip1 = encoding_table[data][0];
+    *chip2 = encoding_table[data][1];
+    *chip3 = encoding_table[data][2];
 }

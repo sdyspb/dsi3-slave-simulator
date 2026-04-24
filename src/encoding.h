@@ -1,15 +1,15 @@
-#ifndef ENCODING_H
-#define ENCODING_H
+#ifndef ENCODING_H_
+#define ENCODING_H_
 
 #include <stdint.h>
 
 /**
- * @brief Encodes a 4-bit data value into three chip symbols (0, 1, 2).
- * @param data: Input 4-bit data (0-15)
- * @param chip1: Output for first chip value
- * @param chip2: Output for second chip value
- * @param chip3: Output for third chip value
+ * @brief Encodes a 4-bit data value into three chip symbols
+ * @param data 4-bit value to encode (0-15)
+ * @param chip1 First chip symbol (0-2)
+ * @param chip2 Second chip symbol (0-2)
+ * @param chip3 Third chip symbol (0-2)
  */
-void Response_EncodeData(uint8_t data, uint8_t *chip1, uint8_t *chip2, uint8_t *chip3);
+void Response_EncodeData(uint8_t data, volatile uint8_t *chip1, volatile uint8_t *chip2, volatile uint8_t *chip3);
 
-#endif /* ENCODING_H */
+#endif /* ENCODING_H_ */
