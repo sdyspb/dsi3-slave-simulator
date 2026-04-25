@@ -168,6 +168,13 @@ Timing and encoding follow the DSI3 specification (detailed in `/pdf`).
 ## Debugging
 
 - Use an oscilloscope to monitor the comparator input, SPI clock, and the current output pins.
+
+For example, test code BADC0DB4 simulating 8 symbols of 3-chip / 4-bit response:
+
+<img width="1001" height="437" alt="image" src="https://github.com/user-attachments/assets/6e2ce8b9-ac16-4947-841c-93e2dd809d41" />
+
+Legend: Yellow - 24mA, Blue - 12mA
+
 - The CLI allows manual ADC reads and channel switching, independent of the DSI3 trigger.
 - The heartbeat LED (`GPIO_PD2`) blinks at 1 Hz to indicate system health.
 
