@@ -12,23 +12,22 @@
 000000000.063700: OK: adc_buffer is 32-byte aligned.
 000000000.066100: 
 > sysinfo
-000000005.439900:   System Information:
-000000005.441800:   Board: DSI3 Simulator Board
-000000005.443900:   MCU: STM32H743VIT6
-000000005.445700:   Clock: 400 MHz
-000000005.447300:   CLI Version: 1.0
-000000005.449100: 
+000000007.305600:   System Information:
+000000007.307400:   Board: DSI3 Simulator Board
+000000007.309600:   MCU: STM32H743VIT6
+000000007.311400:   Clock: 400 MHz
+000000007.313000:   CLI Version: 1.0
+000000007.314700: 
 > help
-000000006.276200: 
-Available Commands:
-
-000000006.278100:   help          - Display this help message
-000000006.280900:   sysinfo       - Display system information
-000000006.283700:   heartbeat     - Toggle heartbeat LED
-000000006.286300:   startcomp     - Start comparator for triggering ADC captures
-000000006.289900:   testadc       - Test ADC capture of 128 samples via SPI2 DMA
-000000006.293500:   getbuf        - Get ADC buffer contents
-000000006.296200:   testresp      - Send test response for BADC0DB4 symbol
+000000009.270400:   Available Commands:
+000000009.272300:   help          - Display this help message
+000000009.275100:   sysinfo       - Display system information
+000000009.277900:   heartbeat     - Toggle heartbeat LED
+000000009.280500:   startcomp     - Start comparator for triggering ADC captures
+000000009.284100:   testadc       - Test ADC capture of 128 samples via SPI2 DMA
+000000009.287700:   getbuf        - Get ADC buffer contents
+000000009.290400:   testresp      - Send test response for BADC0DB4 symbol
+000000009.293800:   setchipdur    - Set chip duration factor (1-3)
 ```
 <img width="1080" height="865" alt="dsi3" src="https://github.com/user-attachments/assets/588c5013-d171-46b3-b0d0-04ad6dce4b08" />
 
