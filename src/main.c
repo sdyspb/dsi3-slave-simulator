@@ -28,6 +28,7 @@
 #include "comp.h"  // Added COMP header
 #include "string.h"
 #include "stdio.h"
+#include "stdlib.h"  // Added for atoi function
 #include "stdarg.h"
 #include "encoding.h" // Added for response encoding
 
@@ -106,6 +107,7 @@ void Response_SetValue(uint8_t value);
 void Response_SetChipValue(uint8_t chip_num, uint8_t value);
 void Response_Timer_Init(void);
 void CLI_TestResp(void);
+void CLI_SetChipDuration(uint8_t factor);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -405,6 +407,26 @@ void CLI_TestResp(void)
 }
 
 /**
+ * @brief  Set chip duration factor (1-3)
+ * @param  factor: Chip duration factor (1=min, 2=medium, 3=max)
+ * @retval None
+ */
+// Variable to control chip duration (min=1, nominal=2, max=3)
+volatile uint8_t chip_duration_setting = 2;
+
+void CLI_SetChipDuration(uint8_t setting)
+{
+  if(setting >= 1 && setting <= 3) {
+    chip_duration_setting = setting;
+    char msg[50];
+    snprintf(msg, sizeof(msg), "Chip duration setting set to %d\r\n", setting);
+    CLI_SendString(msg);
+  } else {
+    CLI_SendString("Error: Chip duration setting must be between 1 and 3\r\n");
+  }
+}
+
+/**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
@@ -468,7 +490,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       // Move to next chip position
       current_chip_position++;
       
-      if(current_chip_position >= 2) {  // Each chip lasts for 3 timer periods (actual chip + 2 additional periods)
+      if(current_chip_position >= chip_duration_setting) {  // Each chip lasts for N+1 timer periods based on chip_duration_setting
         current_chip_position = 0;
         current_chip_index++;
         
@@ -613,9 +635,9 @@ void CLI_SendPrompt(void)
   */
 void CLI_PrintHelp(void)
 {
-  char buffer[100];
+  char buffer[200];
   
-  snprintf(buffer, sizeof(buffer), "\r\nAvailable Commands:\r\n");
+  snprintf(buffer, sizeof(buffer), "  Available Commands:\r");
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  help          - Display this help message\r");
   CLI_SendString(buffer);
@@ -630,6 +652,8 @@ void CLI_PrintHelp(void)
   snprintf(buffer, sizeof(buffer), "  getbuf        - Get ADC buffer contents\r");
   CLI_SendString(buffer);
   snprintf(buffer, sizeof(buffer), "  testresp      - Send test response for BADC0DB4 symbol\r");
+  CLI_SendString(buffer);
+  snprintf(buffer, sizeof(buffer), "  setchipdur    - Set chip duration factor (1-3)\r");
   CLI_SendString(buffer);
 }
 
@@ -653,6 +677,7 @@ void CLI_PrintSystemInfo(void)
   CLI_SendString(buffer);
 }
 
+
 /**
   * @brief  Processes CLI commands
   * @param  cmd: Pointer to the command string
@@ -672,6 +697,16 @@ void CLI_ProcessCommand(char *cmd)
       CLI_SendString("\r\nHeartbeat enabled.\r\n");
     }else{
       CLI_SendString("\r\nHeartbeat disabled.\r\n");
+    }
+  }else if(strncmp(cmd, "setchipdur", 10) == 0) {
+    // Command to set chip duration factor: "setchipdur X" where X is 1, 2, or 3
+    char *arg = strchr(cmd, ' ');
+    if(arg != NULL) {
+      arg++; // Skip the space
+      int factor = atoi(arg);
+      CLI_SetChipDuration((uint8_t)factor);
+    } else {
+      CLI_SendString("  Usage: setchipdur <1-3>\r\n");
     }
   }else if(strcmp(cmd, "testadc") == 0){       // Changed from "test_adc_capture" to "testadc"
     // Test ADC capture functionality without COMP trigger
@@ -751,7 +786,7 @@ void CLI_ProcessCommand(char *cmd)
   }else if(strcmp(cmd, "testresp") == 0){
     CLI_TestResp();
   }else{
-    CLI_SendString("  Unknown command. Type 'help' for available commands.\r");
+    CLI_SendString("  Unknown command. Type 'help' for available commands.\r\n");
   }
 }
 /* USER CODE END 4 */
