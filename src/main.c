@@ -468,14 +468,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       // Move to next chip position
       current_chip_position++;
       
-      if(current_chip_position >= 3) {  // Each chip lasts for 3 timer periods (actual chip + 2 additional periods)
+      if(current_chip_position >= 2) {  // Each chip lasts for 3 timer periods (actual chip + 2 additional periods)
         current_chip_position = 0;
         current_chip_index++;
         
         if(current_chip_index >= 3) {  // All 3 chips transmitted
           // Stop timer and deactivate response
           HAL_TIM_Base_Stop_IT(&htim1);
-          response_active = 0; // Сбросим флаг после завершения передачи
+          response_active = 0;
           return;
         }
       }
@@ -502,7 +502,7 @@ void Response_SetValue(uint8_t value)
     // Initialize transmission variables
     current_chip_index = 0;
     current_chip_position = 0;
-    response_active = 1; // Убедимся, что флаг установлен
+    response_active = 1;
     
     // Set initial chip value
     uint8_t chip_value = response_chips[0];
